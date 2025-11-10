@@ -30,6 +30,9 @@ class Board:
         self.pieces[x, y] = player
         self.remove_captured_stones(player, move)
 
+    def empty_board(self, n):
+        self.pieces = [[0 for _ in range(n)] for _ in range(n)]
+
     # ---------- Capture logic ----------
     def get_group_and_liberties(self, x, y):
         color = self.pieces[x, y]

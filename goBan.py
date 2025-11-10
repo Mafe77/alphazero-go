@@ -268,54 +268,54 @@ class GreedyGobangPlayer():
         candidates.sort()
         return candidates[0][1]
 
-game = GoGame(9)  # Your Go game
-board = game.getInitBoard()  # Get empty board
+# game = GoGame(9)  # Your Go game
+# board = game.getInitBoard()  # Get empty board
 
-ai = RandomPlayer(game)      # Initialize random AI
-player = 1            # You can be black (-1)
-ai_color = -1                 # AI is white (1)
+# ai = RandomPlayer(game)      # Initialize random AI
+# player = 1            # You can be black (-1)
+# ai_color = -1                 # AI is white (1)
 
-args = {
-    'C': 1.41,
-    'num_searches': 1000
-}
+# args = {
+#     'C': 1.41,
+#     'num_searches': 1000
+# }
 
-mcts = MCTS(game, args)
+# mcts = MCTS(game, args)
 
-current_player = 1 
+# current_player = 1 
 
-while True:
-    if current_player == ai_color:
-        # action = ai.play(board)
-        neutral_state = game.getCanonicalForm(board, current_player)
-        mcts_probs = mcts.search(neutral_state, current_player)
-        print(mcts_probs)
-        action = np.argmax(mcts_probs)
-    else:
-        # Ask human for input (row and col)
-        x = int(input("Row: "))
-        y = int(input("Col: "))
-        action = x * game.n + y
+# while True:
+#     if current_player == ai_color:
+#         # action = ai.play(board)
+#         neutral_state = game.getCanonicalForm(board, current_player)
+#         mcts_probs = mcts.search(neutral_state, current_player)
+#         print(mcts_probs)
+#         action = np.argmax(mcts_probs)
+#     else:
+#         # Ask human for input (row and col)
+#         x = int(input("Row: "))
+#         y = int(input("Col: "))
+#         action = x * game.n + y
 
-    black_score, white_score = game.getScore(board)
-    print("Black:", black_score)
-    print("White:", white_score)
+#     black_score, white_score = game.getScore(board)
+#     print("Black:", black_score)
+#     print("White:", white_score)
 
     
-    # Get valid moves and check if the action is allowed
-    valids = game.getValidMoves(board, current_player)
-    if valids[action] != 1:
-        print("Invalid move! Try again.")
-        continue
+#     # Get valid moves and check if the action is allowed
+#     valids = game.getValidMoves(board, current_player)
+#     if valids[action] != 1:
+#         print("Invalid move! Try again.")
+#         continue
     
-    # Update the board
-    board, current_player = game.getNextState(board, current_player, action)
+#     # Update the board
+#     board, current_player = game.getNextState(board, current_player, action)
     
-    # Print the board
-    game.display(board)
+#     # Print the board
+#     game.display(board)
     
-    # Optional: check end of game
-    if np.sum(game.getValidMoves(board, current_player)[:-1]) == 0:
-        print("Game over!")
-        break
+#     # Optional: check end of game
+#     if np.sum(game.getValidMoves(board, current_player)[:-1]) == 0:
+#         print("Game over!")
+#         break
 
