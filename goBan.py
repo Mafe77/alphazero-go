@@ -209,6 +209,13 @@ class GoGame():
                          Required by MCTS for hashing.
         """
         return board.tostring()
+
+    def getEncodedState(self, state):
+        encoded_state = np.stack(
+            (state == -1, state == 0, state == 1)
+        ).astype(np.float32)
+        
+        return encoded_state
     
     def getOpponent(self, player):
         return -player

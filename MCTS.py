@@ -1,113 +1,137 @@
 import math
 import numpy as np
+import torch
 
 class Node:
-    def __init__(self, game, args, state, player, parent=None, action_taken=None):
+    def __init__(self, game, args, state, player, parent=None, action_taken=None, prior=0):
         self.game = game
         self.args = args
-        self.state = state  # 2D board
-        self.player = player  # current player to move at this node
+        self.state = state          # canonical state
+        self.player = player        # player to move in canonical form (- always +1 POV)
         self.parent = parent
         self.action_taken = action_taken
-        
-        # binary vector of valid moves (1 = valid, 0 = invalid)
-        self.expandable_moves = self.game.getValidMoves(self.state, self.player)
-        
+        self.prior = prior
+
         self.children = []
         self.visit_count = 0
         self.value_sum = 0.0
 
+        # get valid moves for this state
+        self.valid_moves = game.getValidMoves(self.state, self.player)
+
     def is_fully_expanded(self):
-        return np.sum(self.expandable_moves) == 0
+        return len(self.children) == np.sum(self.valid_moves)
 
     def select(self):
         best_child = None
         best_ucb = -np.inf
+
         for child in self.children:
             ucb = self.get_ucb(child)
             if ucb > best_ucb:
-                best_child = child
                 best_ucb = ucb
+                best_child = child
+
         return best_child
 
     def get_ucb(self, child):
-        epsilon = 1e-8
-        q_value = 0.5 if child.visit_count == 0 else (child.value_sum / child.visit_count + 1) / 2
-        ucb = q_value + self.args['C'] * math.sqrt(math.log(self.visit_count + 1) / (child.visit_count + epsilon))
-        return ucb
+        if child.visit_count == 0:
+            q = 0
+        else:
+            q = child.value_sum / child.visit_count
 
-    def expand(self):
-        # pick a random valid move to expand
-        move_index = np.random.choice(np.where(self.expandable_moves == 1)[0])
-        self.expandable_moves[move_index] = 0  # mark as used
-        
-        # get next board and next player
-        next_state, next_player = self.game.getNextState(self.state, self.player, move_index)
-        next_state = self.game.getCanonicalForm(next_state, next_player)
-        
-        child = Node(self.game, self.args, next_state, next_player, parent=self, action_taken=move_index)
-        self.children.append(child)
-        return child
+        u = self.args['C'] * child.prior * math.sqrt(self.visit_count + 1) / (1 + child.visit_count)
 
-    def simulate(self):
-        rollout_state = self.state.copy()
-        rollout_player = self.player
+        return q + u
+    
+    def expand(self, policy):
+        for action, prob in enumerate(policy):
+            if self.valid_moves[action] == 0:
+                continue
 
-        while True:
-            value, is_terminal = self.game.getValueAndTerminated(rollout_state)
-            if is_terminal:
-                # value is from current player's perspective
-                if rollout_player != self.player:
-                    value = self.game.getOpponentValue(value)
-                return value
+            # apply move as player +1 (canonical player)
+            next_state, next_player = self.game.getNextState(self.state, self.player, action)
 
-            valid_moves = self.game.getValidMoves(rollout_state, rollout_player)
-            if np.sum(valid_moves) == 0:
-                # no legal moves, pass
-                action = self.game.getActionSize() - 1
-            else:
-                action = np.random.choice(np.where(valid_moves == 1)[0])
-            
-            rollout_state, rollout_player = self.game.getNextState(rollout_state, rollout_player, action)
+            # ALWAYS convert to canonical perspective (+1 POV)
+            next_state = self.game.getCanonicalForm(next_state, next_player)
+
+            child = Node(
+                self.game,
+                self.args,
+                next_state,
+                next_player,
+                parent=self,
+                action_taken=action,
+                prior=prob
+            )
+
+            self.children.append(child)
+
+        return self.children[0]
 
     def backpropagate(self, value):
-        self.value_sum += value
         self.visit_count += 1
-        # invert value for opponent
-        value = self.game.getOpponentValue(value)
+        self.value_sum += value
+
+        # always invert value when going to parent
+        value = -value
+
         if self.parent is not None:
             self.parent.backpropagate(value)
 
-
 class MCTS:
-    def __init__(self, game, args):
+    def __init__(self, game, args, model):
         self.game = game
         self.args = args
+        self.model = model
 
-    def search(self, state, player):
-        root = Node(self.game, self.args, state, player)
+    @torch.no_grad()
+    def search(self, root_state, root_player=1):
+        # start with canonical perspective
+        state = self.game.getCanonicalForm(root_state, root_player)
+
+        root = Node(self.game, self.args, state, player=1)
 
         for _ in range(self.args['num_searches']):
             node = root
 
             # Selection
-            while node.is_fully_expanded() and len(node.children) > 0:
+            while node.children and node.is_fully_expanded():
                 node = node.select()
 
-            # Simulation / Expansion
-            value, is_terminal = self.game.getValueAndTerminated(node.state)
-            if not is_terminal:
-                node = node.expand()
-                value = node.simulate()
+            # Evaluate node
+            value, terminal = self.game.getValueAndTerminated(node.state)
+
+            if not terminal:
+                # Neural network evaluation
+                encoded = self.game.getEncodedState(node.state)
+                encoded = torch.tensor(encoded).unsqueeze(0).float()
+
+                policy, value_tensor = self.model(encoded)
+                policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
+
+                # mask invalid moves
+                policy *= node.valid_moves
+                policy_sum = np.sum(policy)
+                if policy_sum > 0:
+                    policy /= policy_sum
+                else:
+                    policy = node.valid_moves / np.sum(node.valid_moves)
+
+                value = value_tensor.item()
+
+                # Expand children
+                node = node.expand(policy)
 
             # Backpropagation
             node.backpropagate(value)
 
         # Compute action probabilities
-        action_probs = np.zeros(self.game.getActionSize(), dtype=np.float32)
+        action_probs = np.zeros(self.game.getActionSize())
         for child in root.children:
             action_probs[child.action_taken] = child.visit_count
-        if np.sum(action_probs) > 0:
-            action_probs /= np.sum(action_probs)
 
+        action_probs /= np.sum(action_probs)
         return action_probs
+
+

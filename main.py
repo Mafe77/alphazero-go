@@ -4,6 +4,7 @@ from consts import WIDTH, HEIGHT, BOARD_SIZE
 from screens import main_menu
 from goBan import GoGame
 from MCTS import MCTS
+from GoNet import GoNet
 
 def main():
     pygame.init()
@@ -13,12 +14,13 @@ def main():
 
     game = GoGame(BOARD_SIZE)
     board = game.getInitBoard() 
+    actionSize = game.getActionSize()
     args = {
         'C': 1.41,
         'num_searches': 10
     }
-
-    mcts = MCTS(game, args)
+    model = GoNet(BOARD_SIZE, actionSize)
+    mcts = MCTS(game, args, model)
     main_menu(screen, mcts)
     # while True:
     #     if game_state == GameState.TITLE:
