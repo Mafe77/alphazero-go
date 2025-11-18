@@ -8,8 +8,9 @@ from goBan import GoGame
 
 
 def main_menu(screen, mcts):
+    bg = pygame.image.load("assets\goBG.png")
     while True:
-        screen.fill((0,0,0))
+        screen.blit(bg, (0, 0))
         
         mx, my = pygame.mouse.get_pos()
         startButton = pygame.Rect(50, 100, 200, 50)
@@ -18,8 +19,8 @@ def main_menu(screen, mcts):
             gameScreen(screen, mcts)
         if quitButton.collidepoint((mx, my)):
             pass
-        pygame.draw.rect(screen, (255, 0, 0), startButton)
-        pygame.draw.rect(screen, (255, 0, 0), quitButton)
+        # pygame.draw.rect(screen, (255, 0, 0), startButton)
+        # pygame.draw.rect(screen, (255, 0, 0), quitButton)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
