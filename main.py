@@ -13,7 +13,7 @@ def main():
     game_state = GameState.TITLE
 
     game = GoGame(BOARD_SIZE)
-    board = game.getInitBoard() 
+    board = game.getInitBoard()
     actionSize = game.getActionSize()
     args = {
         'C': 1.41,
@@ -21,7 +21,7 @@ def main():
     }
     model = GoNet(BOARD_SIZE, actionSize)
     mcts = MCTS(game, args, model)
-    main_menu(screen, mcts)
+    main_menu(screen, mcts, game, board)
     # while True:
     #     if game_state == GameState.TITLE:
     #         # game_state = title_screen(screen)

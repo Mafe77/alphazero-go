@@ -20,6 +20,8 @@ class GoNet(nn.Module):
     def __init__(self, board_size, action_size, num_blocks=6, channels=64):
         super().__init__()
 
+        self.device = torch.device("cuda")
+
         # Input features: 3 channels only if you insist, but 8+ is better
         self.conv_in = nn.Sequential(
             nn.Conv2d(3, channels, 3, padding=1),
@@ -52,6 +54,8 @@ class GoNet(nn.Module):
             nn.Linear(64, 1),
             nn.Tanh()
         )
+
+        self.to(self.device)
 
     def forward(self, x):
         x = self.conv_in(x)

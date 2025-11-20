@@ -22,20 +22,22 @@ class Board:
     def __init__(self, n):
         self.n = n
         # init board using list comprehension
-        self.pieces = [[0 for _ in range(n)] for _ in range(n)]
+        self.pieces = np.zeros((n, n), dtype=np.int8)
+        # print("pieces", self.pieces)
 
     def execute_move(self, move, player):
         x, y = move
-        assert self.pieces[x, y] == 0, "Invalid move: spot occupied"
-        self.pieces[x, y] = player
+        # print("EXECUTE")
+        assert self.pieces[x][y] == 0, "Invalid move: spot occupied"
+        self.pieces[x][y] = player
         self.remove_captured_stones(player, move)
 
     def empty_board(self, n):
-        self.pieces = [[0 for _ in range(n)] for _ in range(n)]
+        self.pieces = np.zeros((n, n), dtype=np.int8)
 
     # ---------- Capture logic ----------
     def get_group_and_liberties(self, x, y):
-        color = self.pieces[x, y]
+        color = self.pieces[x][y]
         assert color != 0, "Starting point must be a stone"
 
         visited = set()
@@ -52,9 +54,9 @@ class Board:
             for dx, dy in directions:
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < self.n and 0 <= ny < self.n:
-                    if self.pieces[nx, ny] == 0:
+                    if self.pieces[nx][ny] == 0:
                         liberties.add((nx, ny))
-                    elif self.pieces[nx, ny] == color and (nx, ny) not in visited:
+                    elif self.pieces[nx][ny] == color and (nx, ny) not in visited:
                         visited.add((nx, ny))
                         queue.append((nx, ny))
                         group.add((nx, ny))
@@ -65,11 +67,11 @@ class Board:
         directions = [(-1,0),(1,0),(0,-1),(0,1)]
         for dx, dy in directions:
             nx, ny = move[0]+dx, move[1]+dy
-            if 0 <= nx < self.n and 0 <= ny < self.n and self.pieces[nx, ny] == opponent:
+            if 0 <= nx < self.n and 0 <= ny < self.n and self.pieces[nx][ny] == opponent:
                 group, liberties = self.get_group_and_liberties(nx, ny)
                 if len(liberties) == 0:
                     for gx, gy in group:
-                        self.pieces[gx, gy] = 0
+                        self.pieces[gx][gy] = 0
 
     # ---------- Legal moves ----------
     def get_legal_moves(self, color):
@@ -97,6 +99,7 @@ class Board:
 
     # ---------- Score ----------
     def get_score(self):
+        print(self.pieces)
         visited = np.zeros((self.n, self.n), dtype=bool)
         black_score = np.sum(self.pieces == -1)
         white_score = np.sum(self.pieces == 1)
@@ -104,12 +107,12 @@ class Board:
 
         for i in range(self.n):
             for j in range(self.n):
-                if self.pieces[i, j] != 0 or visited[i, j]:
+                if self.pieces[i][j] != 0 or visited[i][j]:
                     continue
                 # BFS for empty region
                 queue = deque()
                 queue.append((i, j))
-                visited[i, j] = True
+                visited[i][j] = True
                 territory = [(i,j)]
                 bordering_colors = set()
 

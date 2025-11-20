@@ -80,9 +80,41 @@ class GoGame():
             valids[self.n * x + y] = 1
 
         return valids
+
+    def _flood_fill_territory(self, i, j, visited):
+        stack = [(i, j)]
+        visited[i, j] = True
+        territory = 0
+        borders = set()
+
+        while stack:
+            x, y = stack.pop()
+            territory += 1
+
+            for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
+                nx, ny = x+dx, y+dy
+                if 0 <= nx < self.size and 0 <= ny < self.size:
+                    if visited[nx, ny]:
+                        continue
+                    if self.pieces[nx, ny] == 0:
+                        visited[nx, ny] = True
+                        stack.append((nx, ny))
+                    else:
+                        borders.add(self.pieces[nx, ny])
+
+        # If borders contains both black and white → neutral
+        if 1 in borders and -1 in borders:
+            return territory, 0
+        elif 1 in borders:
+            return territory, 1
+        elif -1 in borders:
+            return territory, -1
+        else:
+            return territory, 0
     
     def getScore(self, board):
-        n = board.shape[0]
+        # print("GETSCORE1",board.pieces)
+        n = self.n
         visited = np.zeros((n, n), dtype=bool)
         black_score = np.sum(board == -1)
         white_score = np.sum(board == 1)
@@ -92,7 +124,7 @@ class GoGame():
 
         for i in range(n):
             for j in range(n):
-                if board[i,j] != 0 or visited[i,j]:
+                if board.pieces[i][j] != 0 or visited[i,j]:
                     continue
 
                 # BFS to find connected empty area
@@ -107,12 +139,12 @@ class GoGame():
                     for dx,dy in directions:
                         nx,ny = x+dx, y+dy
                         if 0 <= nx < n and 0 <= ny < n:
-                            if board[nx,ny] == 0 and not visited[nx,ny]:
+                            if board.pieces[nx][ny] == 0 and not visited[nx,ny]:
                                 visited[nx,ny] = True
                                 queue.append((nx,ny))
                                 territory.append((nx,ny))
-                            elif board[nx,ny] != 0:
-                                bordering_colors.add(board[nx,ny])
+                            elif board.pieces[nx][ny] != 0:
+                                bordering_colors.add(board.pieces[nx][ny])
 
                 # If all bordering stones are same color, territory belongs to that color
                 if len(bordering_colors) == 1:
@@ -138,11 +170,11 @@ class GoGame():
         b.pieces = np.copy(board)
 
         # If there are legal moves, game is still ongoing
-        if len(b.get_legal_moves(1)) > 0 or len(b.get_legal_moves(-1)) > 0:
-            return 0
+        # if len(b.get_legal_moves(1)) > 0 or len(b.get_legal_moves(-1)) > 0:
+        #     return 0
 
         # Game ended, calculate score
-        black_score, white_score = b.get_score()
+        black_score, white_score = self.getScore(b)
 
         if black_score > white_score:
             return 1
@@ -211,11 +243,16 @@ class GoGame():
         return board.tostring()
 
     def getEncodedState(self, state):
-        encoded_state = np.stack(
-            (state == -1, state == 0, state == 1)
-        ).astype(np.float32)
-        
-        return encoded_state
+        # print("ENCODED", state)
+        board = np.array(state, dtype=np.int8)
+
+        encoded = np.stack([
+            (board == -1).astype(np.float32),
+            (board == 0).astype(np.float32),
+            (board == 1).astype(np.float32)
+        ])
+
+        return encoded
     
     def getOpponent(self, player):
         return -player
