@@ -58,7 +58,7 @@ def gameScreen(screen, mcts, game, board):
             if current_player == 1 and not game_over:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     handle_click = True
-                    print("CLICK")
+                    # print("CLICK")
 
         # -------------------------
         # HUMAN MOVE
@@ -70,11 +70,12 @@ def gameScreen(screen, mcts, game, board):
                 if pos:
                     i, j = pos
                     action = i * game.n + j
+                    # print("ACTION", action)
 
                     valids = game.getValidMoves(board, current_player)
                     if valids[action] == 1:
                         board, current_player = game.getNextState(board, 1, action)
-                        print("CLICK2")
+                        # print("CLICK2")
                         current_player = -1
                         passes = 0
                     else:
@@ -98,6 +99,7 @@ def gameScreen(screen, mcts, game, board):
                 else:
                     neutral = game.getCanonicalForm(board, current_player)
                     mcts_probs = mcts.search(neutral)
+                    # print(mcts_probs)
                     action = np.argmax(mcts_probs)
 
                     board, current_player = game.getNextState(board, current_player, action)
