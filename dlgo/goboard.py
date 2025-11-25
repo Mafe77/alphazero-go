@@ -91,7 +91,6 @@ class Board():
             self._grid[new_string_point] = new_string
 
         self._hash ^= zobrist.HASH_CODE[point, player]
-        # print(self._hash)
 
         for other_color_string in adjacent_opposite_color:
             replacement = other_color_string.without_liberty(point)
