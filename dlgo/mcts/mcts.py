@@ -2,7 +2,7 @@ import random
 import math
 from dlgo.gotypes import Player
 from dlgo.agent.base import Agent
-from dlgo.agent.naive import RandomBot
+from dlgo.agent.naive import FastRandomBot
 
 class MCTSNode(object):
     def __init__(self, game_state, parent=None, move=None):
@@ -108,8 +108,8 @@ class MCTSAgent(Agent):
     @staticmethod
     def simulate_random_game(game):
         bots = {
-            Player.black: RandomBot(),
-            Player.white: RandomBot(),
+            Player.black: FastRandomBot(),
+            Player.white: FastRandomBot(),
         }
         while not game.is_over():
             bot_move = bots[game.next_player].select_move(game)
