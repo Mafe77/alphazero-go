@@ -78,6 +78,9 @@ def gameScreen(screen, mcts, game, board):
                         # print("CLICK2")
                         current_player = -1
                         passes = 0
+                        # black, white = game.getScore(board)
+                        # print("Black:", black)
+                        # print("White:", white)
                     else:
                         message = "Invalid move."
 

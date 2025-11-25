@@ -6,6 +6,7 @@ import numpy as np
 class GoGame():
     def __init__(self, n=9):
         self.n = n
+        self.pass_count = 0
     
     def getInitBoard(self):
         """
@@ -81,39 +82,8 @@ class GoGame():
 
         return valids
 
-    def _flood_fill_territory(self, i, j, visited):
-        stack = [(i, j)]
-        visited[i, j] = True
-        territory = 0
-        borders = set()
-
-        while stack:
-            x, y = stack.pop()
-            territory += 1
-
-            for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
-                nx, ny = x+dx, y+dy
-                if 0 <= nx < self.size and 0 <= ny < self.size:
-                    if visited[nx, ny]:
-                        continue
-                    if self.pieces[nx, ny] == 0:
-                        visited[nx, ny] = True
-                        stack.append((nx, ny))
-                    else:
-                        borders.add(self.pieces[nx, ny])
-
-        # If borders contains both black and white → neutral
-        if 1 in borders and -1 in borders:
-            return territory, 0
-        elif 1 in borders:
-            return territory, 1
-        elif -1 in borders:
-            return territory, -1
-        else:
-            return territory, 0
     
     def getScore(self, board):
-        # print("GETSCORE1",board.pieces)
         n = self.n
         visited = np.zeros((n, n), dtype=bool)
         black_score = np.sum(board == -1)
@@ -153,27 +123,33 @@ class GoGame():
                         white_score += len(territory)
                     else:
                         black_score += len(territory)
-
+        print(black_score)
+        print(white_score)
         return black_score, white_score
 
-    def getGameEnded(self, board):
+    def getGameEnded(self, board, pass_count):
         """
-        Determine if the game has ended.
+        Game ends ONLY after two consecutive passes.
 
+        Args:
+            board       : current board array
+            pass_count  : number of consecutive passes (0, 1, or 2)
+        
         Returns:
-            0      : game ongoing
-            1      : black wins
-            -1     : white wins
-            1e-4   : draw
+            0      -> game continues
+            1      -> black wins
+            -1     -> white wins
+            1e-4   -> draw
         """
+
+        # Game ends ONLY when both players pass in a row
+        if pass_count < 2:
+            return 0
+
+        # Two passes -> score the board
         b = Board(self.n)
         b.pieces = np.copy(board)
 
-        # If there are legal moves, game is still ongoing
-        # if len(b.get_legal_moves(1)) > 0 or len(b.get_legal_moves(-1)) > 0:
-        #     return 0
-
-        # Game ended, calculate score
         black_score, white_score = self.getScore(b)
 
         if black_score > white_score:
@@ -181,7 +157,7 @@ class GoGame():
         elif white_score > black_score:
             return -1
         else:
-            return 1e-4  # draw
+            return 1e-4
 
     def getValueAndTerminated(self, board):
         if self.getGameEnded(board) == 1 or self.getGameEnded(board) == -1:
@@ -283,83 +259,4 @@ class GoGame():
                         print("- ", end="")
             print("|")
         print("   -----------------------")
-
-class RandomPlayer():
-    def __init__(self, game):
-        self.game = game
-
-    def play(self, board):
-        a = np.random.randint(self.game.getActionSize())
-        valids = self.game.getValidMoves(board, 1)
-        while valids[a]!=1:
-            a = np.random.randint(self.game.getActionSize())
-        return a
-
-
-class GreedyGobangPlayer():
-    def __init__(self, game):
-        self.game = game
-
-    def play(self, board):
-        valids = self.game.getValidMoves(board, 1)
-        candidates = []
-        for a in range(self.game.getActionSize()):
-            if valids[a]==0:
-                continue
-            nextBoard, _ = self.game.getNextState(board, 1, a)
-            black_score, white_score = self.game.getScore(nextBoard)
-            candidates += [(-white_score, a)]
-        candidates.sort()
-        return candidates[0][1]
-
-# game = GoGame(9)  # Your Go game
-# board = game.getInitBoard()  # Get empty board
-
-# ai = RandomPlayer(game)      # Initialize random AI
-# player = 1            # You can be black (-1)
-# ai_color = -1                 # AI is white (1)
-
-# args = {
-#     'C': 1.41,
-#     'num_searches': 1000
-# }
-
-# mcts = MCTS(game, args)
-
-# current_player = 1 
-
-# while True:
-#     if current_player == ai_color:
-#         # action = ai.play(board)
-#         neutral_state = game.getCanonicalForm(board, current_player)
-#         mcts_probs = mcts.search(neutral_state, current_player)
-#         print(mcts_probs)
-#         action = np.argmax(mcts_probs)
-#     else:
-#         # Ask human for input (row and col)
-#         x = int(input("Row: "))
-#         y = int(input("Col: "))
-#         action = x * game.n + y
-
-#     black_score, white_score = game.getScore(board)
-#     print("Black:", black_score)
-#     print("White:", white_score)
-
-    
-#     # Get valid moves and check if the action is allowed
-#     valids = game.getValidMoves(board, current_player)
-#     if valids[action] != 1:
-#         print("Invalid move! Try again.")
-#         continue
-    
-#     # Update the board
-#     board, current_player = game.getNextState(board, current_player, action)
-    
-#     # Print the board
-#     game.display(board)
-    
-#     # Optional: check end of game
-#     if np.sum(game.getValidMoves(board, current_player)[:-1]) == 0:
-#         print("Game over!")
-#         break
 

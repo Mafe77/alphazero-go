@@ -23,8 +23,8 @@ def main():
         'num_searches': 1000
     }
     model = GoNet(BOARD_SIZE, actionSize)
-    # model.load_state_dict(torch.load("model_2.pt", map_location=device))
-    # model.eval()
+    model.load_state_dict(torch.load("model_2.pt", map_location=device))
+    model.eval()
     mcts = MCTS(game, args, model)
     main_menu(screen, mcts, game, board)
 

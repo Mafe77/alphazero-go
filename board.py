@@ -30,107 +30,95 @@ class Board:
         # print("EXECUTE")
         assert self.pieces[x][y] == 0, "Invalid move: spot occupied"
         self.pieces[x][y] = player
-        self.remove_captured_stones(player, move)
+        self.remove_captured(x, y, player, self.pieces)
 
     def empty_board(self, n):
         self.pieces = np.zeros((n, n), dtype=np.int8)
 
     # ---------- Capture logic ----------
-    def get_group_and_liberties(self, x, y):
-        color = self.pieces[x][y]
+    def get_group_and_liberties(self, x, y, pieces=None):
+        """Return the connected group and its liberties."""
+        if pieces is None:
+            pieces = self.pieces
+
+        color = pieces[x][y]
         assert color != 0, "Starting point must be a stone"
 
         visited = set()
-        liberties = set()
         group = set()
-        queue = deque()
-        queue.append((x, y))
+        liberties = set()
+        queue = [(x, y)]
         visited.add((x, y))
         group.add((x, y))
 
         directions = [(-1,0),(1,0),(0,-1),(0,1)]
+
         while queue:
-            cx, cy = queue.popleft()
+            cx, cy = queue.pop()
             for dx, dy in directions:
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < self.n and 0 <= ny < self.n:
-                    if self.pieces[nx][ny] == 0:
+                    if pieces[nx][ny] == 0:
                         liberties.add((nx, ny))
-                    elif self.pieces[nx][ny] == color and (nx, ny) not in visited:
+                    elif pieces[nx][ny] == color and (nx, ny) not in visited:
                         visited.add((nx, ny))
                         queue.append((nx, ny))
                         group.add((nx, ny))
+
         return group, liberties
 
-    def remove_captured_stones(self, player, move):
-        opponent = -player
+    def remove_captured(self, x, y, color, pieces=None):
+        """Remove opponent stones with zero liberties."""
+        if pieces is None:
+            pieces = self.pieces
+
+        opponent = -color
+        directions = [(-1,0),(1,0),(0,-1),(0,1)]
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < self.n and 0 <= ny < self.n and pieces[nx][ny] == opponent:
+                group, libs = self.get_group_and_liberties(nx, ny, pieces)
+                if len(libs) == 0:
+                    for gx, gy in group:
+                        pieces[gx][gy] = 0
+
+    # ---------------- Helper functions for legality ----------------
+    def get_group_and_liberties_sim(self, pieces, x, y):
+        """Same as get_group_and_liberties but explicitly for a given board array."""
+        return self.get_group_and_liberties(x, y, pieces)
+
+    def move_captures_opponent(self, pieces, x, y, color):
+        """Check if placing a stone captures any opponent stones."""
+        opponent = -color
+        captured = False
         directions = [(-1,0),(1,0),(0,-1),(0,1)]
         for dx, dy in directions:
-            nx, ny = move[0]+dx, move[1]+dy
-            if 0 <= nx < self.n and 0 <= ny < self.n and self.pieces[nx][ny] == opponent:
-                group, liberties = self.get_group_and_liberties(nx, ny)
-                if len(liberties) == 0:
-                    for gx, gy in group:
-                        self.pieces[gx][gy] = 0
+            nx, ny = x+dx, y+dy
+            if 0 <= nx < self.n and 0 <= ny < self.n and pieces[nx][ny] == opponent:
+                group, libs = self.get_group_and_liberties_sim(pieces, nx, ny)
+                if len(libs) == 0:
+                    captured = True
+        return captured
 
-    # ---------- Legal moves ----------
+    # ---------------- get legal moves ----------------
     def get_legal_moves(self, color):
-        """Returns all the legal moves for the given color.
-        (1 for white, -1 for black
-        """
-        moves = set()  # stores the legal moves.
-
-        # Get all empty locations.
-        for y in range(self.n):
-            for x in range(self.n):
-                if self.pieces[x][y] == 0:
-                    moves.add((x, y))
-        return list(moves)
-
-    def has_legal_moves(self):
-        """Returns True if has legal move else False
-        """
-        # Get all empty locations.
-        for y in range(self.n):
-            for x in range(self.n):
-                if self.pieces[x][y] == 0:
-                    return True
-        return False
-
-    # ---------- Score ----------
-    def get_score(self):
-        print(self.pieces)
-        visited = np.zeros((self.n, self.n), dtype=bool)
-        black_score = np.sum(self.pieces == -1)
-        white_score = np.sum(self.pieces == 1)
-        directions = [(-1,0),(1,0),(0,-1),(0,1)]
-
-        for i in range(self.n):
-            for j in range(self.n):
-                if self.pieces[i][j] != 0 or visited[i][j]:
+        legal = []
+        for x in range(self.n):
+            for y in range(self.n):
+                if self.pieces[x][y] != 0:
                     continue
-                # BFS for empty region
-                queue = deque()
-                queue.append((i, j))
-                visited[i][j] = True
-                territory = [(i,j)]
-                bordering_colors = set()
 
-                while queue:
-                    x, y = queue.popleft()
-                    for dx, dy in directions:
-                        nx, ny = x+dx, y+dy
-                        if 0 <= nx < self.n and 0 <= ny < self.n:
-                            if self.pieces[nx, ny] == 0 and not visited[nx, ny]:
-                                visited[nx, ny] = True
-                                queue.append((nx, ny))
-                                territory.append((nx, ny))
-                            elif self.pieces[nx, ny] != 0:
-                                bordering_colors.add(self.pieces[nx, ny])
-                if len(bordering_colors) == 1:
-                    color = bordering_colors.pop()
-                    if color == 1:
-                        white_score += len(territory)
-                    else:
-                        black_score += len(territory)
-        return black_score, white_score
+                temp = np.copy(self.pieces)
+                temp[x][y] = color
+
+                # Remove captured opponent stones
+                self.remove_captured(x, y, color, pieces=temp)
+
+                # Check suicide: if this group has no liberties and doesn't capture opponent, illegal
+                group, libs = self.get_group_and_liberties_sim(temp, x, y)
+                if len(libs) == 0 and not self.move_captures_opponent(self.pieces, x, y, color):
+                    continue
+
+                legal.append((x, y))
+        return legal
