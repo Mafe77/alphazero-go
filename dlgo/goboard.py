@@ -137,7 +137,6 @@ class Board():
                 if neighbor_string not in adjacent_opposite_color:
                     adjacent_opposite_color.append(neighbor_string)
         new_string = GoString(player, [point], liberties)
-# tag::apply_zobrist[]
         # 1. Merge any adjacent strings of the same color.
         for same_color_string in adjacent_same_color:
             new_string = new_string.merged_with(same_color_string)
@@ -147,7 +146,6 @@ class Board():
         self._hash ^= zobrist.HASH_CODE[point, None]
         # Add filled point hash code.
         self._hash ^= zobrist.HASH_CODE[point, player]
-# end::apply_zobrist[]
 
         # 2. Reduce liberties of any adjacent strings of the opposite
         #    color.
@@ -251,10 +249,9 @@ class Board():
         copied._hash = self._hash
         return copied
 
-# tag::return_zobrist[]
     def zobrist_hash(self):
         return self._hash
-# end::return_zobrist[]
+
 
 
 class Move():
