@@ -9,7 +9,7 @@ import shutil
 import numpy as np
 import multiprocessing
 from os import sys
-from keras.utils import to_categorical
+
 
 from dlgo.gosgf.sgf import Sgf_game
 from dlgo.goboard import Board, GameState, Move
@@ -29,7 +29,7 @@ def worker(jobinfo):
 
 
 class GoDataProcessor:
-    def __init__(self, encoder='simple', data_directory='data'):
+    def __init__(self, encoder='simple', data_directory='./dlgo/data/sgfdata'):
         self.encoder_string = encoder
         self.encoder = get_encoder_by_name(encoder, 19)
         self.data_dir = data_directory
@@ -37,7 +37,7 @@ class GoDataProcessor:
     def load_go_data(self, data_type='train', num_samples=1000,
                      use_generator=False):
         index = KGSIndex(data_directory=self.data_dir)
-        index.download_files()
+        # index.download_files()
 
         sampler = Sampler(data_dir=self.data_dir)
         data = sampler.draw_data(data_type, num_samples)
@@ -102,7 +102,21 @@ class GoDataProcessor:
         feature_file_base = self.data_dir + '/' + data_file_name + '_features_%d'
         label_file_base = self.data_dir + '/' + data_file_name + '_labels_%d'
 
-        chunk = 0  # Due to files with large content, split up after chunksize
+       # After the loop that fills features and labels, TRIM to actual counter:
+        features = features[:counter]  # Remove unused zero-filled rows
+        labels = labels[:counter]
+
+        # Verify we got data
+        if counter == 0:
+            print(f"Warning: No valid moves extracted from {zip_file_name}")
+            return
+
+        print(f"Extracted {counter} positions from {zip_file_name} (expected {total_examples})")
+
+        feature_file_base = self.data_dir + '/' + data_file_name + '_features_%d'
+        label_file_base = self.data_dir + '/' + data_file_name + '_labels_%d'
+
+        chunk = 0
         chunksize = 1024
         while features.shape[0] >= chunksize:
             feature_file = feature_file_base % chunk
@@ -112,6 +126,13 @@ class GoDataProcessor:
             current_labels, labels = labels[:chunksize], labels[chunksize:]
             np.save(feature_file, current_features)
             np.save(label_file, current_labels)
+
+        
+        if features.shape[0] > 0:
+            feature_file = feature_file_base % chunk
+            label_file = label_file_base % chunk
+            np.save(feature_file, features)
+            np.save(label_file, labels)
 
     def consolidate_games(self, name, samples):
         files_needed = set(file_name for file_name, index in samples)
@@ -130,7 +151,7 @@ class GoDataProcessor:
                 x = np.load(feature_file)
                 y = np.load(label_file)
                 x = x.astype('float32')
-                y = to_categorical(y.astype(int), 19 * 19)
+                y = y.astype(np.int64)
                 feature_list.append(x)
                 label_list.append(y)
 

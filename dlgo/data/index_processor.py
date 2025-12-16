@@ -116,6 +116,6 @@ class KGSIndex:
             self.file_info.append({'url': url, 'filename': filename, 'num_games': num_games})
 
 
-if __name__ == '__main__':
-    index = KGSIndex()
-    index.download_files()
+# if __name__ == '__main__':
+#     index = KGSIndex()
+#     index.download_files()

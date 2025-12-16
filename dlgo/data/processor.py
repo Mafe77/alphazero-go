@@ -5,7 +5,7 @@ import glob
 import shutil
 
 import numpy as np
-from keras.utils import to_categorical
+
 
 from dlgo.gosgf.sgf import Sgf_game
 from dlgo.goboard import Board, GameState, Move
@@ -86,23 +86,23 @@ class GoDataProcessor:
 
         chunk = 0  # Due to files with large content, split up after chunksize
         chunksize = 1024
-        while features.shape[0] >= chunksize:  # <1>
+        while features.shape[0] >= chunksize:  
             feature_file = feature_file_base % chunk
             label_file = label_file_base % chunk
             chunk += 1
             current_features, features = features[:chunksize], features[chunksize:]
-            current_labels, labels = labels[:chunksize], labels[chunksize:]  # <2>
+            current_labels, labels = labels[:chunksize], labels[chunksize:]  
             np.save(feature_file, current_features)
             np.save(label_file, current_labels)
         
 
     def unzip_data(self, zip_file_name):
-        this_gz = gzip.open(self.data_dir + '/' + zip_file_name)  # <1>
+        this_gz = gzip.open(self.data_dir + '/' + zip_file_name)  
 
-        tar_file = zip_file_name[0:-3]  # <2>
+        tar_file = zip_file_name[0:-3]  
         this_tar = open(self.data_dir + '/' + tar_file, 'wb')
 
-        shutil.copyfileobj(this_gz, this_tar)  # <3>
+        shutil.copyfileobj(this_gz, this_tar)  
         this_tar.close()
         return tar_file
 
@@ -159,12 +159,14 @@ class GoDataProcessor:
                 label_file = feature_file.replace('features', 'labels')
                 x = np.load(feature_file)
                 y = np.load(label_file)
-                x = x.astype('float32')
-                y = to_categorical(y.astype(int), 19 * 19)
+                x = x.astype('float32')                
+                y = y.astype(np.int64)                  
                 feature_list.append(x)
                 label_list.append(y)
+        
         features = np.concatenate(feature_list, axis=0)
         labels = np.concatenate(label_list, axis=0)
+        
         np.save('{}/features_{}.npy'.format(self.data_dir, data_type), features)
         np.save('{}/labels_{}.npy'.format(self.data_dir, data_type), labels)
 

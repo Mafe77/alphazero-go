@@ -15,7 +15,7 @@ from dlgo.gotypes import Player, Point
 
 class SimpleEncoder(Encoder):
     def __init__(self, board_size):
-        self.board_width, self.board_heigth = board_size
+        self.board_width, self.board_height = board_size
         self.num_planes = 11
     
     def name(self):
@@ -29,7 +29,7 @@ class SimpleEncoder(Encoder):
         else:
             board_tensor[9] = 1
         
-        for r in range(self.board_heigth):
+        for r in range(self.board_height):
             for c in range(self.board_width):
                 p = Point(row=r+1, col=c+1)
                 go_string = game_state.board.get_go_string(p)
@@ -43,7 +43,7 @@ class SimpleEncoder(Encoder):
                     liberty_plane = min(4, go_string.num_liberties) - 1
                     if go_string.color == Player.white:
                         liberty_plane += 4
-                    board_tensor[liberty_plane][r][c]
+                    board_tensor[liberty_plane][r][c] = 1
 
         return board_tensor
     
