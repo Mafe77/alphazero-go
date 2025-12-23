@@ -115,10 +115,14 @@ class Board():
     def corners(self, point):
         return self.corner_table[point]
 
+    def is_valid_move(self, point):
+        return self.is_on_grid(point) and self._grid.get(point) is None
+
     def place_stone(self, player, point):
         assert self.is_on_grid(point)
         if self._grid.get(point) is not None:
             print('Illegal play on %s' % str(point))
+            return False
         assert self._grid.get(point) is None
         # 0. Examine the adjacent points.
         adjacent_same_color = []
@@ -260,7 +264,7 @@ class Move():
     Exactly one of is_play, is_pass, is_resign will be set.
     """
     def __init__(self, point=None, is_pass=False, is_resign=False):
-        assert (point is not None) ^ is_pass ^ is_resign
+        # assert (point is not None) ^ is_pass ^ is_resign
         self.point = point
         self.is_play = (self.point is not None)
         self.is_pass = is_pass

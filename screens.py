@@ -1,117 +1,42 @@
 import sys
 import pygame
-import numpy as np
-from consts import WINDOW_SIZE, BOARD_SIZE
-from helper import from_screen, to_screen
-from game import draw_board, draw_hover, draw_ui
-from goBan import GoGame
+from consts import WIDTH, HEIGHT
+from game import Game
+from button import Button
+
+class Screen:
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("AlphaGo PY")
+        self.clock = pygame.time.Clock()  
+        self.game = Game()  
+    
+    def get_font(self, size): # Returns Press-Start-2P in the desired size
+        return pygame.font.Font("assets/font.ttf", size)
+
+    def main_menu(self):
+        bg = pygame.image.load("assets/goBG.png")
+        playImage = pygame.image.load("assets/Start_Hovered.png")
+        playImage = pygame.transform.scale(playImage, (300,30))
+
+        while True:
+            self.screen.blit(bg, (0, 0))
+            
+            MENU_MOUSE_POS = pygame.mouse.get_pos()
+            PLAY_BUTTON = Button(image=playImage,text_input="", 
+                            font=self.get_font(45), pos=(460, 700), base_color="white",hovering_color="gray")
+            for button in [PLAY_BUTTON]:
+                button.changeColor(MENU_MOUSE_POS)
+                button.update(self.screen)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        self.game.run()               
 
 
-def main_menu(screen, mcts, game, board):
-    bg = pygame.image.load("assets/goBG.png")
-    while True:
-        screen.blit(bg, (0, 0))
-        
-        mx, my = pygame.mouse.get_pos()
-        startButton = pygame.Rect(50, 100, 200, 50)
-        quitButton = pygame.Rect(50, 200, 200, 50)
-        if startButton.collidepoint((mx, my)):
-            gameScreen(screen, mcts, game, board)
-        if quitButton.collidepoint((mx, my)):
-            pass
-        pygame.draw.rect(screen, (255, 0, 0), startButton)
-        pygame.draw.rect(screen, (255, 0, 0), quitButton)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-
-        pygame.display.update()
-
-
-def gameScreen(screen, mcts, game, board):
-    running = True
-    current_player = 1
-    game_over = False
-    passes = 0
-    ai_processing = False
-    handle_click = False
-
-    board = game.getInitBoard()
-    message = ""
-
-    while running:
-        mx, my = pygame.mouse.get_pos()
-        hover = from_screen(mx, my)
-
-        # -------------------------
-        # EVENT HANDLING
-        # -------------------------
-        for event in pygame.event.get():
-
-            if event.type == pygame.QUIT:
-                running = False
-                break
-
-            if current_player == 1 and not game_over:
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    handle_click = True
-                    # print("CLICK")
-
-        # -------------------------
-        # HUMAN MOVE
-        # -------------------------
-            if handle_click:
-                handle_click = False   # avoid repeats
-
-                pos = from_screen(mx, my)
-                if pos:
-                    i, j = pos
-                    action = i * game.n + j
-                    # print("ACTION", action)
-
-                    valids = game.getValidMoves(board, current_player)
-                    if valids[action] == 1:
-                        board, current_player = game.getNextState(board, 1, action)
-                        # print("CLICK2")
-                        current_player = -1
-                        passes = 0
-                        # black, white = game.getScore(board)
-                        # print("Black:", black)
-                        # print("White:", white)
-                    else:
-                        message = "Invalid move."
-
-        # -------------------------
-        # AI MOVE
-        # -------------------------
-            if current_player == -1 and not game_over and not ai_processing:
-                ai_processing = True
-
-                valids = game.getValidMoves(board, current_player)
-                if valids.sum() == 0:
-                    passes += 1
-                    message = "White passed."
-
-                    if passes >= 2:
-                        game_over = True
-                    else:
-                        current_player = 1
-                else:
-                    neutral = game.getCanonicalForm(board, current_player)
-                    mcts_probs = mcts.search(neutral)
-                    # print(mcts_probs)
-                    action = np.argmax(mcts_probs)
-
-                    board, current_player = game.getNextState(board, current_player, action)
-                    passes = 0
-
-                ai_processing = False
-
-        # DRAW
-        draw_board(screen, board)
-        draw_ui(screen, hover, message)
-        pygame.display.flip()
-
+            pygame.display.update()
