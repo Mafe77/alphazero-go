@@ -115,8 +115,10 @@ class Game:
             6  # thicker
         )
 
+
+        blackPiece = pygame.image.load("assets/BlackPiece.png")
+        whitePiece = pygame.image.load("assets/WhitePiece.png")
         # Draw stones
-        # print_board(self.board)
         for row in range(1, self.board.num_rows + 1):
             for col in range(1, self.board.num_cols + 1):
                 stone = self.board.get(gotypes.Point(row=row, col=col))
@@ -131,26 +133,15 @@ class Game:
 
                 # Draw stone
                 if stone == gotypes.Player.black:
-                    pygame.draw.circle(
-                        self.display_surface,
-                        BLACK_STONE,
-                        (x, y),
-                        STONE_RADIUS
-                    )
+                    # pygame.draw.circle(
+                    #     self.display_surface,
+                    #     BLACK_STONE,
+                    #     (x, y),
+                    #     STONE_RADIUS
+                    # )
+                    self.display_surface.blit(blackPiece, (x - 20,y - 20))
                 else:  # white stone
-                    pygame.draw.circle(
-                        self.display_surface,
-                        WHITE_STONE,
-                        (x, y),
-                        STONE_RADIUS
-                    )
-                    pygame.draw.circle(
-                        self.display_surface,
-                        LINE_COLOR,
-                        (x, y),
-                        STONE_RADIUS,
-                        2
-                    )
+                    self.display_surface.blit(whitePiece, (x - 20,y - 20))
 
 
     
@@ -176,7 +167,7 @@ class Game:
                     if pos and self.board.is_valid_move(pos):
                         self.game = self.game.apply_move(move)
                         self.board = self.game.board            
-                        print_board(self.board)        
+                        # print_board(self.board)        
                 
                 elif event.type == pygame.MOUSEMOTION:
                     hover_pos = self.get_board_position(event.pos)
