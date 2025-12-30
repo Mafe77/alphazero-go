@@ -6,9 +6,10 @@ WIDTH = 840
 HEIGHT = 840
 
 # Constants
-CELL_SIZE = 40   # Size of each grid cell in pixels
-MARGIN = 50      # Margin around the board
-STONE_RADIUS = 16  # Radius of the stones
+CELL_SIZE = 36   # Size of each grid cell in pixels
+BOARD_X = 60  # move right
+BOARD_Y = 50  # vertical position stays the same
+STONE_RADIUS = 20  # Radius of the stones
 
 # Colors
 BOARD_COLOR = (220, 179, 92)  # Wood color

@@ -18,16 +18,23 @@ class Screen:
     def main_menu(self):
         bg = pygame.image.load("assets/goBG.png")
         playImage = pygame.image.load("assets/Start_Hovered.png")
-        playImage = pygame.transform.scale(playImage, (300,30))
+        playImage = pygame.transform.scale(playImage, (330,40))
+        playImage2 = pygame.image.load("assets/Start_Unhovered.png")
+        playImage2 = pygame.transform.scale(playImage2, (330,40))
 
+        settingImage = pygame.image.load("assets/Setting_Hovered.png")
+        settingImage = pygame.transform.scale(settingImage, (330,40))
+        settingImage2 = pygame.image.load("assets/Setting_Unhovered.png")
+        settingImage2 = pygame.transform.scale(settingImage2, (330,40))
+        
         while True:
             self.screen.blit(bg, (0, 0))
             
             MENU_MOUSE_POS = pygame.mouse.get_pos()
-            PLAY_BUTTON = Button(image=playImage,text_input="", 
-                            font=self.get_font(45), pos=(460, 700), base_color="white",hovering_color="gray")
-            for button in [PLAY_BUTTON]:
-                button.changeColor(MENU_MOUSE_POS)
+            PLAY_BUTTON = Button(hovered=playImage, unhovered=playImage2 , pos=(470, 700))
+            SETTINGS_BUTTON = Button(hovered=settingImage, unhovered=settingImage2, pos=(470, 745))
+            for button in [PLAY_BUTTON, SETTINGS_BUTTON]:
+                button.changeHover(MENU_MOUSE_POS)
                 button.update(self.screen)
 
             for event in pygame.event.get():

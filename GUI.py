@@ -1,24 +1,13 @@
 import pygame
 import sys
 
-from consts import WIDTH, HEIGHT, BOARD_SIZE
+from consts import *
 
 from dlgo import gotypes
 
 # Initialize Pygame
 pygame.init()
 
-# Constants
-CELL_SIZE = 40   # Size of each grid cell in pixels
-MARGIN = 50      # Margin around the board
-STONE_RADIUS = 16  # Radius of the stones
-
-# Colors
-BOARD_COLOR = (220, 179, 92)  # Wood color
-LINE_COLOR = (0, 0, 0)
-BLACK_STONE = (0, 0, 0)
-WHITE_STONE = (255, 255, 255)
-TEXT_COLOR = (0, 0, 0)
 
 # Calculate window size
 WINDOW_WIDTH = CELL_SIZE * (BOARD_SIZE - 1) + 2 * MARGIN
@@ -107,8 +96,8 @@ def draw_board(screen, board, hover_pos=None):
     # Draw coordinate labels
     font = pygame.font.Font(None, 24)
     
-    # Column labels (A, B, C, ...)
-    cols = "ABCDEFGHJKLMNOPQRST"  # Note: 'I' is typically skipped in Go
+    # Column labels
+    cols = "ABCDEFGHJKLMNOPQRST" 
     for col in range(board.num_cols):
         label = font.render(cols[col], True, TEXT_COLOR)
         x = MARGIN + col * CELL_SIZE - label.get_width() // 2
@@ -117,7 +106,7 @@ def draw_board(screen, board, hover_pos=None):
         # Also at bottom
         screen.blit(label, (x, MARGIN + (board.num_rows - 1) * CELL_SIZE + 15))
     
-    # Row labels (1, 2, 3, ...)
+    # Row labels
     for row in range(1, board.num_rows + 1):
         label = font.render(str(row), True, TEXT_COLOR)
         x = MARGIN - 30
