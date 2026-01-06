@@ -166,18 +166,18 @@ class Game:
                 if self.last_move == goboard.Move(point):
                     pygame.draw.circle(self.display_surface, color, (x, y), 6, width=3)
         
-        if self.hover_pos:
-            x = BOARD_X + (self.hover_pos.col - 1) * CELL_SIZE
-            y = BOARD_Y + (self.board.num_rows - self.hover_pos.row) * CELL_SIZE
+        # if self.hover_pos:
+        #     x = BOARD_X + (self.hover_pos.col - 1) * CELL_SIZE
+        #     y = BOARD_Y + (self.board.num_rows - self.hover_pos.row) * CELL_SIZE
             
-            # Create semi-transparent surface
-            hover_piece = blackPiece.copy()
-            hover_piece.set_alpha(120)  # 0–255 (lower = more transparent)
+        #     # Create semi-transparent surface
+        #     hover_piece = blackPiece.copy()
+        #     hover_piece.set_alpha(120)
 
-            self.display_surface.blit(
-                hover_piece,
-                (x - STONE_RADIUS, y - STONE_RADIUS)
-            )
+        #     self.display_surface.blit(
+        #         hover_piece,
+        #         (x - STONE_RADIUS, y - STONE_RADIUS)
+        #     )
 
 
     
@@ -208,13 +208,20 @@ class Game:
         clock = pygame.time.Clock()
 
         bg = pygame.image.load("assets/boardBG.png")
+        pygame.mouse.set_visible(False)
+        cursor_img = pygame.image.load("assets/cursor.png").convert_alpha()
+        cursor_img_rect = cursor_img.get_rect()
 
         if self.ai_enabled and self.game.next_player == self.ai_color:
             self.make_ai_move()
         
         while True:
+            cursor_img_rect.center = pygame.mouse.get_pos()            
+
             # adding board bg
             self.display_surface.blit(bg, (0, 0))
+            self.draw_board()
+            self.display_surface.blit(cursor_img, cursor_img_rect) 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -223,14 +230,12 @@ class Game:
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.thinking:
                     if self.game.next_player == self.human_color or not self.ai_enabled:                        
                         pos = self.get_board_position(event.pos)
-                        print(pos)
                         if pos:
                             move = goboard.Move.play(pos)
-                            # print("human:", move)
-                            self.last_move = move
                             if self.game.is_valid_move(move):
                                 self.game = self.game.apply_move(move)
                                 self.board = self.game.board
+                                self.last_move = move
 
                                 # pygame.time.wait(500)
                                 self.make_ai_move()
@@ -240,7 +245,6 @@ class Game:
                     self.hover_pos = self.get_board_position(event.pos)
                     if self.hover_pos and self.board.get(self.hover_pos) is not None:
                         self.hover_pos = None
-            
-            self.draw_board()
+                        
             pygame.display.flip()
         
