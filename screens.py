@@ -6,11 +6,12 @@ from button import Button
 
 class Screen:
     def __init__(self):
+        model_path = "model/best_model.pth"
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("AlphaGo PY")
         self.clock = pygame.time.Clock()  
-        self.game = Game()  
+        self.game = Game(model_path)  
     
     def get_font(self, size): # Returns Press-Start-2P in the desired size
         return pygame.font.Font("assets/font.ttf", size)

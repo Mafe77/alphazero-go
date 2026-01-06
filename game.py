@@ -1,18 +1,39 @@
 import pygame
 import sys
+import torch
 
 from consts import *
 from dlgo import goboard
 from dlgo import gotypes
 from dlgo.utils import print_board
+from dlgo.encoders.simple import SimpleEncoder
+from aiPlayer import AIPlayer
 
 class Game:
-    def __init__(self):
+    def __init__(self, model_path):
         self.display_surface = pygame.display.get_surface()
         self.game = goboard.GameState.new_game(BOARD_SIZE)
         self.board = self.game.board
         # self.draw_board()
-    
+        self.human_color = gotypes.Player.black
+        self.ai_color = gotypes.Player.white
+        self.encoder = SimpleEncoder((BOARD_SIZE, BOARD_SIZE))
+
+        if model_path:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            self.ai_player = AIPlayer(model_path, self.encoder, device)
+            self.ai_enabled = True
+
+            print(f"Human plays as: {self.human_color}")
+            print(f"AI plays as: {self.ai_color}")
+        else:
+            self.ai_player = None
+            self.ai_enabled = False
+            print("AI not enabled. Two player mode")
+        
+        self.hover_pos = None
+        self.thinking = False
+        
     def get_board_position(self, mouse_pos):
         x, y = mouse_pos
 
@@ -133,12 +154,6 @@ class Game:
 
                 # Draw stone
                 if stone == gotypes.Player.black:
-                    # pygame.draw.circle(
-                    #     self.display_surface,
-                    #     BLACK_STONE,
-                    #     (x, y),
-                    #     STONE_RADIUS
-                    # )
                     self.display_surface.blit(blackPiece, (x - 20,y - 20))
                 else:  # white stone
                     self.display_surface.blit(whitePiece, (x - 20,y - 20))
@@ -146,12 +161,34 @@ class Game:
 
     
     # def draw_ui(self):
+
+    def make_ai_move(self):
+        if not self.ai_enabled or self.thinking:
+            return
+        
+        if self.game.next_player == self.ai_color:
+            self.thinking = True
+            self.draw_board()
+            pygame.display.flip()
+
+            move = self.ai_player.select_move(self.game)
+
+            self.game = self.game.apply_move(move)
+            self.board = self.game.board
+            
+            self.thinking = False
         
 
         
 
     def run(self):
+        clock = pygame.time.Clock()
+
         bg = pygame.image.load("assets/boardBG.png")
+
+        if self.ai_enabled and self.game.next_player == self.ai_color:
+            self.make_ai_move()
+        
         while True:
             # adding board bg
             self.display_surface.blit(bg, (0, 0))
@@ -160,14 +197,18 @@ class Game:
                     pygame.quit()
                     sys.exit()
                 
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    pos = self.get_board_position(event.pos)
-                    # print(pos)
-                    move = goboard.Move.play(pos)
-                    if pos and self.board.is_valid_move(pos):
-                        self.game = self.game.apply_move(move)
-                        self.board = self.game.board            
-                        # print_board(self.board)        
+                if event.type == pygame.MOUSEBUTTONDOWN and not self.thinking:
+                    if self.game.next_player == self.human_color or not self.ai_enabled:                        
+                        pos = self.get_board_position(event.pos)
+                        if pos:
+                            move = goboard.Move.play(pos)
+                            if self.game.is_valid_move(move):
+                                self.game = self.game.apply_move(move)
+                                self.board = self.game.board
+
+                                pygame.time.wait(500)
+                                self.make_ai_move()
+                    
                 
                 elif event.type == pygame.MOUSEMOTION:
                     hover_pos = self.get_board_position(event.pos)
