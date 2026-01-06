@@ -14,6 +14,7 @@ class Game:
         self.display_surface = pygame.display.get_surface()
         self.game = goboard.GameState.new_game(BOARD_SIZE)
         self.board = self.game.board
+        self.last_move = None
         # self.draw_board()
         self.human_color = gotypes.Player.black
         self.ai_color = gotypes.Player.white
@@ -137,16 +138,18 @@ class Game:
         )
 
 
-        blackPiece = pygame.image.load("assets/BlackPiece.png")
+        blackPiece = pygame.image.load("assets/BlackPiece.png").convert_alpha()
         whitePiece = pygame.image.load("assets/WhitePiece.png")
         # Draw stones
         for row in range(1, self.board.num_rows + 1):
             for col in range(1, self.board.num_cols + 1):
-                stone = self.board.get(gotypes.Point(row=row, col=col))
+                point = gotypes.Point(row=row, col=col)
+                stone = self.board.get(point)
+                color = (0, 0, 0)
 
                 if stone not in (gotypes.Player.black, gotypes.Player.white):
                     continue  # Empty space
-
+                
                 # Convert board coordinates → screen coordinates
                 # Go: row 1 is bottom, Pygame: y increases downward
                 x = BOARD_X + (col - 1) * CELL_SIZE
@@ -155,8 +158,26 @@ class Game:
                 # Draw stone
                 if stone == gotypes.Player.black:
                     self.display_surface.blit(blackPiece, (x - 20,y - 20))
+                    color = (255, 255, 255)
                 else:  # white stone
                     self.display_surface.blit(whitePiece, (x - 20,y - 20))
+                    color = (0, 0, 0)
+                
+                if self.last_move == goboard.Move(point):
+                    pygame.draw.circle(self.display_surface, color, (x, y), 6, width=3)
+        
+        if self.hover_pos:
+            x = BOARD_X + (self.hover_pos.col - 1) * CELL_SIZE
+            y = BOARD_Y + (self.board.num_rows - self.hover_pos.row) * CELL_SIZE
+            
+            # Create semi-transparent surface
+            hover_piece = blackPiece.copy()
+            hover_piece.set_alpha(120)  # 0–255 (lower = more transparent)
+
+            self.display_surface.blit(
+                hover_piece,
+                (x - STONE_RADIUS, y - STONE_RADIUS)
+            )
 
 
     
@@ -172,6 +193,8 @@ class Game:
             pygame.display.flip()
 
             move = self.ai_player.select_move(self.game)
+            self.last_move = move
+            # print("last ai:", self.last_move)
 
             self.game = self.game.apply_move(move)
             self.board = self.game.board
@@ -200,20 +223,23 @@ class Game:
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.thinking:
                     if self.game.next_player == self.human_color or not self.ai_enabled:                        
                         pos = self.get_board_position(event.pos)
+                        print(pos)
                         if pos:
                             move = goboard.Move.play(pos)
+                            # print("human:", move)
+                            self.last_move = move
                             if self.game.is_valid_move(move):
                                 self.game = self.game.apply_move(move)
                                 self.board = self.game.board
 
-                                pygame.time.wait(500)
+                                # pygame.time.wait(500)
                                 self.make_ai_move()
                     
                 
                 elif event.type == pygame.MOUSEMOTION:
-                    hover_pos = self.get_board_position(event.pos)
-                    if hover_pos and self.board.get(hover_pos) is not None:
-                        hover_pos = None
+                    self.hover_pos = self.get_board_position(event.pos)
+                    if self.hover_pos and self.board.get(self.hover_pos) is not None:
+                        self.hover_pos = None
             
             self.draw_board()
             pygame.display.flip()
