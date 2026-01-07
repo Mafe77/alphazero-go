@@ -12,7 +12,7 @@ BOARD_Y = 50  # vertical position stays the same
 STONE_RADIUS = 20  # Radius of the stones
 
 # Colors
-BOARD_COLOR = (220, 179, 92)  # Wood color
+BOARD_COLOR = (214, 179, 103)  # Wood color
 LINE_COLOR = (0, 0, 0)
 BLACK_STONE = (0, 0, 0)
 WHITE_STONE = (255, 255, 255)

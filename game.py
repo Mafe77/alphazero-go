@@ -136,7 +136,14 @@ class Game:
             (BOARD_X, BOARD_Y + board_height + 1),
             6  # thicker
         )
-
+        
+        # draw star points
+        if self.board.num_rows == 19 and self.board.num_cols == 19:
+            star_points = [(3, 3), (3, 9), (3, 15), (9, 3), (9, 9), (9, 15), (15, 3), (15, 9), (15, 15)]
+            for row, col in star_points:
+                x = BOARD_X + (col) * CELL_SIZE
+                y = BOARD_Y + (row) * CELL_SIZE
+                pygame.draw.circle(self.display_surface, LINE_COLOR, (x + 1, y + 1), 5)
 
         blackPiece = pygame.image.load("assets/BlackPiece.png").convert_alpha()
         whitePiece = pygame.image.load("assets/WhitePiece.png")
@@ -166,22 +173,20 @@ class Game:
                 if self.last_move == goboard.Move(point):
                     pygame.draw.circle(self.display_surface, color, (x, y), 6, width=3)
         
-        # if self.hover_pos:
-        #     x = BOARD_X + (self.hover_pos.col - 1) * CELL_SIZE
-        #     y = BOARD_Y + (self.board.num_rows - self.hover_pos.row) * CELL_SIZE
+        cursor_img = pygame.image.load("assets/cursor.png").convert_alpha()
+        if self.hover_pos:
+            x = BOARD_X + (self.hover_pos.col - 1) * CELL_SIZE
+            y = BOARD_Y + (self.board.num_rows - self.hover_pos.row) * CELL_SIZE
             
-        #     # Create semi-transparent surface
-        #     hover_piece = blackPiece.copy()
-        #     hover_piece.set_alpha(120)
+            # Create semi-transparent surface
+            hover_piece = blackPiece.copy()
+            hover_piece.set_alpha(120)
 
-        #     self.display_surface.blit(
-        #         hover_piece,
-        #         (x - STONE_RADIUS, y - STONE_RADIUS)
-        #     )
+            self.display_surface.blit(
+                hover_piece,
+                (x - STONE_RADIUS, y - STONE_RADIUS)
+            )
 
-
-    
-    # def draw_ui(self):
 
     def make_ai_move(self):
         if not self.ai_enabled or self.thinking:
@@ -194,7 +199,6 @@ class Game:
 
             move = self.ai_player.select_move(self.game)
             self.last_move = move
-            # print("last ai:", self.last_move)
 
             self.game = self.game.apply_move(move)
             self.board = self.game.board
@@ -207,7 +211,7 @@ class Game:
     def run(self):
         clock = pygame.time.Clock()
 
-        bg = pygame.image.load("assets/boardBG.png")
+        bg = pygame.image.load("assets/boardBG.png").convert()
         pygame.mouse.set_visible(False)
         cursor_img = pygame.image.load("assets/cursor.png").convert_alpha()
         cursor_img_rect = cursor_img.get_rect()
