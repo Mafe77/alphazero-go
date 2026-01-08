@@ -7,7 +7,7 @@ Future plans of training with more samples and implementing self play for reinfo
 
 ## Current UI
 Main Menu
-![Main Menu](https://github.com/Mafe77/alphazero-go/blob/master/assets/mainmenuSS.png)
+![Main Menu](https://github.com/Mafe77/alphazero-go/blob/master/assets/mainSS.png)
 
 Game Screen
 ![Game Screen](https://github.com/Mafe77/alphazero-go/blob/master/assets/gamemenuSS.png)
