@@ -10,62 +10,14 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from dlgo.data.parallel_processor import GoDataProcessor
+from dlgo.data.generator import GoDataset, GeneratorDataLoader
 from dlgo.encoders.simple import SimpleEncoder
 from dlgo.network import GoNetwork
-
-
-class GoDataset(Dataset):
-    """PyTorch Dataset wrapper for Go data generator."""
-    
-    def __init__(self, generator, num_samples, batch_size, num_classes):
-        self.generator = generator
-        self.num_samples = num_samples
-        self.batch_size = batch_size
-        self.num_classes = num_classes
-        self.steps = math.ceil(num_samples / batch_size)
-        
-    def __len__(self):
-        return self.num_samples
-    
-    def get_generator(self):
-        """Returns the underlying generator for DataLoader."""
-        return self.generator.generate(self.batch_size, self.num_classes)
-
 
 def collate_from_generator(batch):
     """Custom collate function that pulls from generator."""
     # batch is ignored, we pull from generator instead
     return batch[0] if batch else None
-
-
-
-class GeneratorDataLoader:
-    """Wrapper to make generator work with PyTorch training loop."""
-    
-    def __init__(self, generator, num_samples, batch_size, num_classes):
-        self.generator = generator
-        self.num_samples = num_samples
-        self.batch_size = batch_size
-        self.num_classes = num_classes
-        self.steps = math.ceil(num_samples / batch_size)
-        
-    def __iter__(self):
-        # Use return_tensors=True to get PyTorch tensors directly
-        self.gen = self.generator.generate(self.batch_size, self.num_classes, return_tensors=True)
-        self.current_step = 0
-        return self
-    
-    def __next__(self):
-        if self.current_step >= self.steps:
-            raise StopIteration
-
-        x_tensor, y_tensor = next(self.gen)
-        
-        self.current_step += 1
-        return x_tensor, y_tensor
-    
-    def __len__(self):
-        return self.steps
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -121,49 +73,75 @@ def validate(model, dataloader, criterion, device):
     accuracy = correct / total
     return avg_loss, accuracy
 
+def debug_samples(processor, data_type, num_samples):
+    """Debug what samples will be drawn."""
+    from dlgo.data.sampling import Sampler
+    from dlgo.data.index_processor import KGSIndex
+    
+    index = KGSIndex(data_directory=processor.data_dir)
+    sampler = Sampler(data_dir=processor.data_dir)
+    
+    print(f"\n=== Debug {data_type} data ===")
+    data = sampler.draw_data(data_type, num_samples)
+    print(f"Drew {len(data)} samples for {data_type}")
+    
+    if data:
+        print(f"Sample data entry: {data[0]}")
+        
+        # Check what files would be processed
+        zip_names = set(file_name for file_name, index in data)
+        print(f"Unique zip files: {len(zip_names)}")
+        
+        for zip_name in list(zip_names)[:3]:  # Show first 3
+            base_name = zip_name.replace('.tar.gz', '')
+            data_file_name = base_name + data_type
+            chunk_file = os.path.join(processor.data_dir, data_file_name + '_features_0.npy')
+            print(f"  {zip_name} -> {data_file_name}")
+            print(f"    Chunk file exists: {os.path.exists(chunk_file)}")
+    else:
+        print(f"ERROR: No samples drawn for {data_type}!")
+    
+    return data
 
 def main():
     # Configuration
     go_board_rows, go_board_cols = 19, 19
     num_classes = go_board_rows * go_board_cols
-    num_games = 1000
-    
-    batch_size = 128
-    epochs = 25
     learning_rate = 0.01
+    epochs = 50
     
-    # Set device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
-    
-    # Load data
     encoder = SimpleEncoder((go_board_rows, go_board_cols))
     processor = GoDataProcessor(encoder=encoder.name())
     
-    train_generator = processor.load_go_data('train', num_games, use_generator=True)
-    test_generator = processor.load_go_data('test', num_games, use_generator=True)
+    # Load generators (this processes and saves data to .npy files)
+    print("Loading training data...")
+    train_generator = processor.load_go_data('train', 10000, use_generator=True)
     
-    train_samples = train_generator.get_num_samples()
-    test_samples = test_generator.get_num_samples()
+    print("Loading test data...")
+    test_generator = processor.load_go_data('test', 1000, use_generator=True)
+    
+    # Get sample COUNTS (integers, not lists)
+    train_samples = train_generator.get_num_samples()  # Returns int
+    test_samples = test_generator.get_num_samples()    # Returns int
     
     print(f"Training samples: {train_samples}")
     print(f"Validation samples: {test_samples}")
     
-    # Create data loaders
+    if train_samples == 0:
+        raise ValueError("No training samples found!")
+    if test_samples == 0:
+        raise ValueError("No test samples found!")
+    
+    # Continue with training
+    batch_size = 128
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    # Now train_samples and test_samples are integers
     train_loader = GeneratorDataLoader(train_generator, train_samples, batch_size, num_classes)
     val_loader = GeneratorDataLoader(test_generator, test_samples, batch_size, num_classes)
     
-    # Debug: Check data format
-    print("\n=== VERIFY DATA FORMAT ===")
-    train_iter = iter(train_loader)
-    x_batch, y_batch = next(train_iter)
-    print(f"Input shape: {x_batch.shape}")  # Should be (128, 11, 19, 19)
-    print(f"Label shape: {y_batch.shape}")  # Should be (128,)
-    print(f"Unique labels in batch: {len(torch.unique(y_batch))}")
-    print("=== END VERIFY ===\n")
-    
     # Create model
-    model = GoNetwork(input_channels=encoder.num_planes, num_classes=num_classes)
+    model = GoNetwork.GoNetwork(input_channels=encoder.num_planes, num_classes=num_classes)
     model = model.to(device)
     
     # Print model summary
@@ -265,37 +243,6 @@ def main():
     return model, history
 
 
-def plot_training_history(history, save_path='../checkpoints/training_history.png'):
-    """Plot training and validation metrics."""
-    import matplotlib.pyplot as plt
-    
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-    
-    epochs_range = range(1, len(history['train_acc']) + 1)
-    
-    # Plot accuracy
-    ax1.plot(epochs_range, history['train_acc'], label='Train')
-    ax1.plot(epochs_range, history['val_acc'], label='Validation')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Accuracy')
-    ax1.set_title('Model Accuracy')
-    ax1.legend()
-    ax1.grid(True)
-    
-    # Plot loss
-    ax2.plot(epochs_range, history['train_loss'], label='Train')
-    ax2.plot(epochs_range, history['val_loss'], label='Validation')
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Loss')
-    ax2.set_title('Model Loss')
-    ax2.legend()
-    ax2.grid(True)
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    print(f"Training history plot saved to: {save_path}")
-    plt.close()
-
 
 def load_model(checkpoint_path, device='cpu'):
     """Load a saved model."""
@@ -309,12 +256,6 @@ def load_model(checkpoint_path, device='cpu'):
 
 if __name__ == "__main__":
     model, history = main()
-    
-    # Plot training history
-    try:
-        plot_training_history(history)
-    except ImportError:
-        print("Matplotlib not available for plotting. Install with: pip install matplotlib")
     
     print("\nTraining complete!")
     print(f"Best validation accuracy: {max(history['val_acc']):.4f}")

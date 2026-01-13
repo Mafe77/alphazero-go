@@ -34,8 +34,7 @@ class GoDataProcessor:
         self.encoder = get_encoder_by_name(encoder, 19)
         self.data_dir = data_directory
 
-    def load_go_data(self, data_type='train', num_samples=1000,
-                     use_generator=False):
+    def load_go_data(self, data_type='train', num_samples=1000, use_generator=False):
         index = KGSIndex(data_directory=self.data_dir)
         # index.download_files()
 
@@ -47,8 +46,12 @@ class GoDataProcessor:
             generator = DataGenerator(self.data_dir, data)
             return generator  
         else:
+            if num_samples > 1000:
+                print(f"Warning: Consolidating {num_samples} samples will use a lot of memory!")
+                print("Consider using use_generator=True instead.")
+        
             features_and_labels = self.consolidate_games(data_type, data)
-            return features_and_labels 
+            return features_and_labels
 
 
     def unzip_data(self, zip_file_name):
@@ -62,23 +65,31 @@ class GoDataProcessor:
         return tar_file
 
     def process_zip(self, zip_file_name, data_file_name, game_list):
+        """Process zip file with minimal memory usage by streaming to disk."""
         tar_file = self.unzip_data(zip_file_name)
         zip_file = tarfile.open(self.data_dir + '/' + tar_file)
         name_list = zip_file.getnames()
-        total_examples = self.num_total_examples(zip_file, game_list, name_list)
-
-        shape = self.encoder.shape()
-        feature_shape = np.insert(shape, 0, np.asarray([total_examples]))
-        features = np.zeros(feature_shape)
-        labels = np.zeros((total_examples,))
-
-        counter = 0
+        
+        feature_file_base = self.data_dir + '/' + data_file_name + '_features_%d'
+        label_file_base = self.data_dir + '/' + data_file_name + '_labels_%d'
+        
+        # Accumulate features in smaller chunks
+        chunk = 0
+        chunksize = 1024
+        features_buffer = []
+        labels_buffer = []
+        
         for index in game_list:
             name = name_list[index + 1]
             if not name.endswith('.sgf'):
-                raise ValueError(name + ' is not a valid sgf')
-            sgf_content = zip_file.extractfile(name).read()
-            sgf = Sgf_game.from_string(sgf_content)
+                continue
+                
+            try:
+                sgf_content = zip_file.extractfile(name).read()
+                sgf = Sgf_game.from_string(sgf_content)
+            except Exception as e:
+                print(f"Error reading {name}: {e}")
+                continue
 
             game_state, first_move_done = self.get_handicap(sgf)
 
@@ -92,47 +103,37 @@ class GoDataProcessor:
                         move = Move.play(point)
                     else:
                         move = Move.pass_turn()
+                        
                     if first_move_done and point is not None:
-                        features[counter] = self.encoder.encode(game_state)
-                        labels[counter] = self.encoder.encode_point(point)
-                        counter += 1
+                        features_buffer.append(self.encoder.encode(game_state))
+                        labels_buffer.append(self.encoder.encode_point(point))
+                        
+                        # Save chunk when buffer is full
+                        if len(features_buffer) >= chunksize:
+                            feature_file = feature_file_base % chunk
+                            label_file = label_file_base % chunk
+                            
+                            np.save(feature_file, np.array(features_buffer, dtype=np.float32))
+                            np.save(label_file, np.array(labels_buffer, dtype=np.int64))
+                            
+                            print(f"Saved chunk {chunk} with {len(features_buffer)} positions")
+                            
+                            features_buffer = []
+                            labels_buffer = []
+                            chunk += 1
+                        
                     game_state = game_state.apply_move(move)
                     first_move_done = True
-
-        feature_file_base = self.data_dir + '/' + data_file_name + '_features_%d'
-        label_file_base = self.data_dir + '/' + data_file_name + '_labels_%d'
-
-       # After the loop that fills features and labels, TRIM to actual counter:
-        features = features[:counter]  # Remove unused zero-filled rows
-        labels = labels[:counter]
-
-        # Verify we got data
-        if counter == 0:
-            print(f"Warning: No valid moves extracted from {zip_file_name}")
-            return
-
-        print(f"Extracted {counter} positions from {zip_file_name} (expected {total_examples})")
-
-        feature_file_base = self.data_dir + '/' + data_file_name + '_features_%d'
-        label_file_base = self.data_dir + '/' + data_file_name + '_labels_%d'
-
-        chunk = 0
-        chunksize = 1024
-        while features.shape[0] >= chunksize:
-            feature_file = feature_file_base % chunk
-            label_file = label_file_base % chunk
-            chunk += 1
-            current_features, features = features[:chunksize], features[chunksize:]
-            current_labels, labels = labels[:chunksize], labels[chunksize:]
-            np.save(feature_file, current_features)
-            np.save(label_file, current_labels)
-
         
-        if features.shape[0] > 0:
+        # Save remaining buffer
+        if features_buffer:
             feature_file = feature_file_base % chunk
             label_file = label_file_base % chunk
-            np.save(feature_file, features)
-            np.save(label_file, labels)
+            np.save(feature_file, np.array(features_buffer, dtype=np.float32))
+            np.save(label_file, np.array(labels_buffer, dtype=np.int64))
+            print(f"Saved final chunk {chunk} with {len(features_buffer)} positions")
+        
+        zip_file.close()
 
     def consolidate_games(self, name, samples):
         files_needed = set(file_name for file_name, index in samples)
@@ -194,16 +195,34 @@ class GoDataProcessor:
         for zip_name in zip_names:
             base_name = zip_name.replace('.tar.gz', '')
             data_file_name = base_name + data_type
-            if not os.path.isfile(self.data_dir + '/' + data_file_name):
+            
+            # Check if chunk files exist instead of consolidated file
+            chunk_pattern = self.data_dir + '/' + data_file_name + '_features_0.npy'
+            
+            if not os.path.isfile(chunk_pattern):
+                print(f"Need to process: {zip_name} for {data_type}")
                 zips_to_process.append((self.__class__, self.encoder_string, zip_name,
                                         data_file_name, indices_by_zip_name[zip_name]))
+            else:
+                print(f"Already processed: {zip_name} for {data_type}")
 
-        cores = multiprocessing.cpu_count()  # Determine number of CPU cores and split work load among them
+        if not zips_to_process:
+            print(f"All {data_type} data already processed")
+            return
+
+        cores = multiprocessing.cpu_count()
+        # Limit cores to reduce memory usage
+        cores = min(cores, 4)  # Use max 4 cores
+        
+        print(f"Processing {len(zips_to_process)} files with {cores} workers...")
+        
         pool = multiprocessing.Pool(processes=cores)
         p = pool.map_async(worker, zips_to_process)
         try:
             _ = p.get()
-        except KeyboardInterrupt:  # Caught keyboard interrupt, terminating workers
+            pool.close()
+            pool.join()
+        except KeyboardInterrupt:
             pool.terminate()
             pool.join()
             sys.exit(-1)

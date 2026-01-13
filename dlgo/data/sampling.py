@@ -1,133 +1,222 @@
-from __future__ import print_function
-from __future__ import absolute_import
 import os
 import random
-from dlgo.data.index_processor import KGSIndex
+import json
+from pathlib import Path
+from typing import List, Tuple, Set, Optional
 
 
 class Sampler:
-    """Sample training and test data from zipped sgf files such that test data is kept stable."""
-    def __init__(self, data_dir='data', num_test_games=100, cap_year=2015, seed=1337):
-        self.data_dir = data_dir
-        self.num_test_games = num_test_games
-        self.test_games = []
-        self.train_games = []
-        self.test_folder = 'test_samples.py'
-        self.cap_year = cap_year
-
-        random.seed(seed)
-        self.compute_test_samples()
-
-    def draw_data(self, data_type, num_samples):
-        if data_type == 'test':
-            return self.test_games
-        elif data_type == 'train' and num_samples is not None:
-            return self.draw_training_samples(num_samples)
-        elif data_type == 'train' and num_samples is None:
-            return self.draw_all_training()
-        else:
-            raise ValueError(data_type + " is not a valid data type, choose from 'train' or 'test'")
-
-    def draw_samples(self, num_sample_games):
-        """Draw num_sample_games many training games from index."""
-        available_games = []
-        index = KGSIndex(data_directory=self.data_dir)
-
-        for fileinfo in index.file_info:
-            filename = fileinfo['filename']
-            year = int(filename.split('-')[1].split('_')[0])
-            if year > self.cap_year:
-                continue
-            num_games = fileinfo['num_games']
-            for i in range(num_games):
-                available_games.append((filename, i))
-        print('>>> Total number of games used: ' + str(len(available_games)))
-
-        sample_set = set()
-        while len(sample_set) < num_sample_games:
-            sample = random.choice(available_games)
-            if sample not in sample_set:
-                sample_set.add(sample)
-        print('Drawn ' + str(num_sample_games) + ' samples:')
-        return list(sample_set)
-
-    def draw_training_games(self):
-        """Get list of all non-test games, that are no later than dec 2014
-        Ignore games after cap_year to keep training data stable
+    """
+    Sample training and test data from zipped SGF files with stable test set.
+    
+    Improvements:
+    - Better file handling with pathlib
+    - JSON format for test samples (more robust than eval)
+    - Caching of available games to avoid recomputing
+    - Type hints for better code documentation
+    - More efficient set operations
+    - Better error handling
+    """
+    
+    def __init__(self, data_dir: str = 'data', num_test_games: int = 100, 
+                 cap_year: int = 2015, seed: int = 1337):
         """
-        index = KGSIndex(data_directory=self.data_dir)
-        for file_info in index.file_info:
-            filename = file_info['filename']
-            year = int(filename.split('-')[1].split('_')[0])
-            if year > self.cap_year:
-                continue
-            num_games = file_info['num_games']
-            for i in range(num_games):
-                sample = (filename, i)
-                if sample not in self.test_games:
-                    self.train_games.append(sample)
-        print('total num training games: ' + str(len(self.train_games)))
-
-    def compute_test_samples(self):
-        """If not already existing, create local file to store fixed set of test samples"""
-        if not os.path.isfile(self.test_folder):
-            test_games = self.draw_samples(self.num_test_games)
-            test_sample_file = open(self.test_folder, 'w')
-            for sample in test_games:
-                test_sample_file.write(str(sample) + "\n")
-            test_sample_file.close()
-
-        test_sample_file = open(self.test_folder, 'r')
-        sample_contents = test_sample_file.read()
-        test_sample_file.close()
-        for line in sample_contents.split('\n'):
-            if line != "":
-                (filename, index) = eval(line)
-                self.test_games.append((filename, index))
-
-    def draw_training_samples(self, num_sample_games):
-        """Draw training games, not overlapping with any of the test games."""
-        available_games = []
-        index = KGSIndex(data_directory=self.data_dir)
-        for fileinfo in index.file_info:
-            filename = fileinfo['filename']
-            year = int(filename.split('-')[1].split('_')[0])
-            if year > self.cap_year:
-                continue
-            num_games = fileinfo['num_games']
-            for i in range(num_games):
-                available_games.append((filename, i))
-        print('total num games: ' + str(len(available_games)))
-
-        sample_set = set()
-        while len(sample_set) < num_sample_games:
-            sample = random.choice(available_games)
-            if sample not in self.test_games:
-                sample_set.add(sample)
-        print('Drawn ' + str(num_sample_games) + ' samples:')
-        return list(sample_set)
-
-    def draw_all_training(self):
-        """Draw all available training games."""
-        available_games = []
-        index = KGSIndex(data_directory=self.data_dir)
-
-        for fileinfo in index.file_info:
-            filename = fileinfo['filename']
-            year = int(filename.split('-')[1].split('_')[0])
-            if year > self.cap_year:
-                continue
-            if 'num_games' in fileinfo.keys():
-                num_games = fileinfo['num_games']
+        Initialize sampler.
+        
+        Args:
+            data_dir: Directory containing SGF data
+            num_test_games: Number of games to reserve for testing
+            cap_year: Maximum year to include (for stability)
+            seed: Random seed for reproducibility
+        """
+        self.data_dir = Path(data_dir)
+        self.num_test_games = num_test_games
+        self.cap_year = cap_year
+        self.seed = seed
+        
+        # Use JSON instead of Python literals (safer than eval)
+        self.test_file = self.data_dir / 'test_samples.json'
+        
+        # Cache for available games
+        self._available_games_cache: Optional[List[Tuple[str, int]]] = None
+        
+        # Initialize test and train games
+        self.test_games: Set[Tuple[str, int]] = set()
+        self.train_games: List[Tuple[str, int]] = []
+        
+        random.seed(seed)
+        self._load_or_create_test_samples()
+    
+    def draw_data(self, data_type: str, num_samples: Optional[int] = None) -> List[Tuple[str, int]]:
+        """
+        Draw data samples based on type.
+        
+        Args:
+            data_type: 'train' or 'test'
+            num_samples: Number of samples to draw (only for train)
+            
+        Returns:
+            List of (filename, game_index) tuples
+        """
+        if data_type == 'test':
+            return list(self.test_games)
+        elif data_type == 'train':
+            if num_samples is None:
+                return self._draw_all_training()
             else:
-                continue
-            for i in range(num_games):
-                available_games.append((filename, i))
-        print('total num games: ' + str(len(available_games)))
-
-        sample_set = set()
-        for sample in available_games:
-            if sample not in self.test_games:
-                sample_set.add(sample)
-        print('Drawn all samples, ie ' + str(len(sample_set)) + ' samples:')
-        return list(sample_set)
+                return self._draw_training_samples(num_samples)
+        else:
+            raise ValueError(f"Invalid data_type '{data_type}'. Choose 'train' or 'test'.")
+    
+    def _get_available_games(self, exclude_test: bool = True) -> List[Tuple[str, int]]:
+        """
+        Get all available games up to cap_year.
+        
+        Args:
+            exclude_test: If True, exclude test games from results
+            
+        Returns:
+            List of (filename, game_index) tuples
+        """
+        # Use cache if available
+        if self._available_games_cache is None:
+            from dlgo.data.index_processor import KGSIndex
+            
+            available_games = []
+            index = KGSIndex(data_directory=str(self.data_dir))
+            
+            for fileinfo in index.file_info:
+                filename = fileinfo['filename']
+                
+                # Parse year from filename (format: KGS-YYYY-...)
+                try:
+                    year = int(filename.split('-')[1].split('_')[0])
+                except (IndexError, ValueError):
+                    print(f"Warning: Could not parse year from {filename}, skipping")
+                    continue
+                
+                if year > self.cap_year:
+                    continue
+                
+                num_games = fileinfo.get('num_games', 0)
+                for i in range(num_games):
+                    available_games.append((filename, i))
+            
+            self._available_games_cache = available_games
+            print(f'Total available games (year ≤ {self.cap_year}): {len(available_games)}')
+        
+        if exclude_test:
+            # Filter out test games
+            return [game for game in self._available_games_cache if game not in self.test_games]
+        else:
+            return self._available_games_cache.copy()
+    
+    def _load_or_create_test_samples(self):
+        """Load existing test samples or create new ones."""
+        if self.test_file.exists():
+            # Load existing test samples
+            with open(self.test_file, 'r') as f:
+                test_data = json.load(f)
+            
+            self.test_games = set((item['filename'], item['index']) for item in test_data)
+            print(f'Loaded {len(self.test_games)} test samples from {self.test_file}')
+        else:
+            # Create new test samples
+            print(f'Creating {self.num_test_games} test samples...')
+            self._create_test_samples()
+    
+    def _create_test_samples(self):
+        """Create and save a fixed set of test samples."""
+        available_games = self._get_available_games(exclude_test=False)
+        
+        if len(available_games) < self.num_test_games:
+            raise ValueError(
+                f"Not enough games available ({len(available_games)}) "
+                f"to create {self.num_test_games} test samples"
+            )
+        
+        # Randomly sample test games
+        test_games_list = random.sample(available_games, self.num_test_games)
+        self.test_games = set(test_games_list)
+        
+        # Save to file in JSON format
+        test_data = [
+            {'filename': filename, 'index': idx} 
+            for filename, idx in sorted(test_games_list)
+        ]
+        
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        with open(self.test_file, 'w') as f:
+            json.dump(test_data, f, indent=2)
+        
+        print(f'Created and saved {len(self.test_games)} test samples to {self.test_file}')
+    
+    def _draw_training_samples(self, num_samples: int) -> List[Tuple[str, int]]:
+        """
+        Draw random training samples, excluding test games.
+        
+        Args:
+            num_samples: Number of training samples to draw
+            
+        Returns:
+            List of (filename, game_index) tuples
+        """
+        available_train_games = self._get_available_games(exclude_test=True)
+        
+        if len(available_train_games) < num_samples:
+            print(
+                f"Warning: Requested {num_samples} samples but only "
+                f"{len(available_train_games)} available. Using all available."
+            )
+            num_samples = len(available_train_games)
+        
+        samples = random.sample(available_train_games, num_samples)
+        print(f'Drew {len(samples)} training samples')
+        return samples
+    
+    def _draw_all_training(self) -> List[Tuple[str, int]]:
+        """
+        Draw all available training games (excluding test set).
+        
+        Returns:
+            List of (filename, game_index) tuples
+        """
+        all_train_games = self._get_available_games(exclude_test=True)
+        print(f'Drew all training samples: {len(all_train_games)} games')
+        return all_train_games
+    
+    def get_statistics(self) -> dict:
+        """Get statistics about the dataset."""
+        available_games = self._get_available_games(exclude_test=False)
+        train_games = self._get_available_games(exclude_test=True)
+        
+        return {
+            'total_games': len(available_games),
+            'test_games': len(self.test_games),
+            'available_train_games': len(train_games),
+            'cap_year': self.cap_year,
+            'test_file': str(self.test_file),
+            'test_file_exists': self.test_file.exists(),
+        }
+    
+    def print_statistics(self):
+        """Print dataset statistics."""
+        stats = self.get_statistics()
+        print("\n" + "="*50)
+        print("Dataset Statistics")
+        print("="*50)
+        print(f"Total games (year ≤ {stats['cap_year']}): {stats['total_games']}")
+        print(f"Test games: {stats['test_games']}")
+        print(f"Available training games: {stats['available_train_games']}")
+        print(f"Test file: {stats['test_file']}")
+        print(f"Test file exists: {stats['test_file_exists']}")
+        print("="*50 + "\n")
+    
+    def reset_test_samples(self):
+        """Delete test samples file and regenerate."""
+        if self.test_file.exists():
+            self.test_file.unlink()
+            print(f"Deleted {self.test_file}")
+        
+        self.test_games = set()
+        self._create_test_samples()

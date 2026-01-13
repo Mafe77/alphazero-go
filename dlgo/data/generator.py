@@ -1,4 +1,5 @@
 import glob
+import math
 import numpy as np
 import os
 import torch
@@ -27,15 +28,22 @@ class DataGenerator:
         
         self.num_samples = 0
         for zip_file_name in self.files:
-            file_name = zip_file_name.replace('.tar.gz', '') + 'train'
-            base = os.path.join(self.data_directory, file_name + '_features_*.npy')
-            
-            for feature_file in glob.glob(base):
-                if not os.path.exists(feature_file):
-                    continue
-                # Use mmap_mode to check shape without loading into memory
-                x = np.load(feature_file, mmap_mode='r')
-                self.num_samples += x.shape[0]
+            # Try both 'train' and 'test' suffixes
+            for suffix in ['train', 'test']:
+                file_name = zip_file_name.replace('.tar.gz', '') + suffix
+                base = os.path.join(self.data_directory, file_name + '_features_*.npy')
+                
+                for feature_file in glob.glob(base):
+                    if not os.path.exists(feature_file):
+                        continue
+                    # Use mmap_mode to check shape without loading into memory
+                    try:
+                        x = np.load(feature_file, mmap_mode='r')
+                        self.num_samples += x.shape[0]
+                        del x  # Explicitly delete
+                    except Exception as e:
+                        print(f"Error reading {feature_file}: {e}")
+                        continue
         
         return self.num_samples
 
@@ -150,97 +158,151 @@ class DataGenerator:
             yield item
 
 
-class GoDataset(Dataset):
-    """
-    PyTorch Dataset wrapper for Go data.
-    Loads all data into memory at initialization.
-    Use this if your dataset fits in memory for better performance.
-    """
+# class GoDataset(Dataset):
+#     """
+#     PyTorch Dataset wrapper for Go data.
+#     Loads all data into memory at initialization.
+#     Use this if your dataset fits in memory for better performance.
+#     """
     
-    def __init__(self, data_directory, samples, num_classes=19 * 19):
-        self.data_directory = data_directory
-        self.samples = samples
-        self.files = sorted(set(file_name for file_name, index in samples))
+#     def __init__(self, data_directory, samples, num_classes=19 * 19):
+#         self.data_directory = data_directory
+#         self.samples = samples
+#         self.files = sorted(set(file_name for file_name, index in samples))
+#         self.num_classes = num_classes
+        
+#         # Load all data
+#         self.features, self.labels = self._load_all_data()
+        
+#     def _load_all_data(self):
+#         """Load all data files into memory."""
+#         feature_list = []
+#         label_list = []
+        
+#         for zip_file_name in self.files:
+#             file_name = zip_file_name.replace('.tar.gz', '') + 'train'
+#             base = os.path.join(self.data_directory, file_name + '_features_*.npy')
+            
+#             for feature_file in sorted(glob.glob(base)):
+#                 label_file = feature_file.replace('features', 'labels')
+                
+#                 if not os.path.exists(feature_file) or not os.path.exists(label_file):
+#                     continue
+                
+#                 try:
+#                     x = np.load(feature_file)
+#                     y = np.load(label_file)
+                    
+#                     # Transpose to PyTorch format: (N, C, H, W)
+#                     # Already in this format from file, so no transpose needed
+#                     x = x.astype('float32')
+#                     y = y.astype(np.int64)
+                    
+#                     feature_list.append(x)
+#                     label_list.append(y)
+#                 except Exception as e:
+#                     print(f"Error loading {feature_file}: {e}")
+#                     continue
+        
+#         if not feature_list:
+#             raise ValueError("No data files found!")
+        
+#         features = np.concatenate(feature_list, axis=0)
+#         labels = np.concatenate(label_list, axis=0)
+        
+#         return features, labels
+    
+#     def __len__(self):
+#         return len(self.labels)
+    
+#     def __getitem__(self, idx):
+#         """Get a single sample."""
+#         x = torch.from_numpy(self.features[idx]).float()
+#         y = torch.tensor(self.labels[idx], dtype=torch.long)
+#         return x, y
+
+
+# def create_dataloader(data_directory, samples, batch_size=128, shuffle=True, 
+#                      num_workers=0, use_dataset=False):
+#     """
+#     Factory function to create a PyTorch DataLoader.
+    
+#     Args:
+#         data_directory: Directory containing data files
+#         samples: List of (filename, index) tuples
+#         batch_size: Batch size
+#         shuffle: Whether to shuffle data
+#         num_workers: Number of worker processes for data loading
+#         use_dataset: If True, use GoDataset (loads all in memory). 
+#                     If False, use DataGenerator (streaming).
+    
+#     Returns:
+#         DataLoader or DataGenerator instance
+#     """
+#     if use_dataset:
+#         # Load all data in memory - faster if data fits in RAM
+#         dataset = GoDataset(data_directory, samples)
+#         return DataLoader(
+#             dataset, 
+#             batch_size=batch_size, 
+#             shuffle=shuffle,
+#             num_workers=num_workers,
+#             pin_memory=torch.cuda.is_available()
+#         )
+#     else:
+#         # Use generator - better for large datasets
+#         return DataGenerator(data_directory, samples, shuffle=shuffle)
+
+
+class GoDataset(Dataset):
+    """PyTorch Dataset wrapper for Go data generator."""
+    
+    def __init__(self, generator, num_samples, batch_size, num_classes):
+        self.generator = generator
+        self.num_samples = num_samples
+        self.batch_size = batch_size
+        self.num_classes = num_classes
+        self.steps = math.ceil(num_samples / batch_size)
+        
+    def __len__(self):
+        return self.num_samples
+    
+    def get_generator(self):
+        """Returns the underlying generator for DataLoader."""
+        return self.generator.generate(self.batch_size, self.num_classes)
+
+class GeneratorDataLoader:
+    """Wrapper to make generator work with PyTorch training loop."""
+    
+    def __init__(self, generator, num_samples, batch_size, num_classes):
+        self.generator = generator
+        self.batch_size = batch_size
         self.num_classes = num_classes
         
-        # Load all data
-        self.features, self.labels = self._load_all_data()
+        # Handle both int and list inputs
+        if isinstance(num_samples, list):
+            self.num_samples = len(num_samples)
+            print(f"Warning: num_samples was a list, using length: {self.num_samples}")
+        else:
+            self.num_samples = num_samples
         
-    def _load_all_data(self):
-        """Load all data files into memory."""
-        feature_list = []
-        label_list = []
+        self.steps = math.ceil(self.num_samples / batch_size)
         
-        for zip_file_name in self.files:
-            file_name = zip_file_name.replace('.tar.gz', '') + 'train'
-            base = os.path.join(self.data_directory, file_name + '_features_*.npy')
-            
-            for feature_file in sorted(glob.glob(base)):
-                label_file = feature_file.replace('features', 'labels')
-                
-                if not os.path.exists(feature_file) or not os.path.exists(label_file):
-                    continue
-                
-                try:
-                    x = np.load(feature_file)
-                    y = np.load(label_file)
-                    
-                    # Transpose to PyTorch format: (N, C, H, W)
-                    # Already in this format from file, so no transpose needed
-                    x = x.astype('float32')
-                    y = y.astype(np.int64)
-                    
-                    feature_list.append(x)
-                    label_list.append(y)
-                except Exception as e:
-                    print(f"Error loading {feature_file}: {e}")
-                    continue
+    def __iter__(self):
+        # Use return_tensors=True to get PyTorch tensors directly
+        self.gen = self.generator.generate(self.batch_size, self.num_classes, return_tensors=True)
+        self.current_step = 0
+        return self
+    
+    def __next__(self):
+        if self.current_step >= self.steps:
+            raise StopIteration
         
-        if not feature_list:
-            raise ValueError("No data files found!")
+        # Generator now returns PyTorch tensors in correct format
+        x_tensor, y_tensor = next(self.gen)
         
-        features = np.concatenate(feature_list, axis=0)
-        labels = np.concatenate(label_list, axis=0)
-        
-        return features, labels
+        self.current_step += 1
+        return x_tensor, y_tensor
     
     def __len__(self):
-        return len(self.labels)
-    
-    def __getitem__(self, idx):
-        """Get a single sample."""
-        x = torch.from_numpy(self.features[idx]).float()
-        y = torch.tensor(self.labels[idx], dtype=torch.long)
-        return x, y
-
-
-def create_dataloader(data_directory, samples, batch_size=128, shuffle=True, 
-                     num_workers=0, use_dataset=False):
-    """
-    Factory function to create a PyTorch DataLoader.
-    
-    Args:
-        data_directory: Directory containing data files
-        samples: List of (filename, index) tuples
-        batch_size: Batch size
-        shuffle: Whether to shuffle data
-        num_workers: Number of worker processes for data loading
-        use_dataset: If True, use GoDataset (loads all in memory). 
-                    If False, use DataGenerator (streaming).
-    
-    Returns:
-        DataLoader or DataGenerator instance
-    """
-    if use_dataset:
-        # Load all data in memory - faster if data fits in RAM
-        dataset = GoDataset(data_directory, samples)
-        return DataLoader(
-            dataset, 
-            batch_size=batch_size, 
-            shuffle=shuffle,
-            num_workers=num_workers,
-            pin_memory=torch.cuda.is_available()
-        )
-    else:
-        # Use generator - better for large datasets
-        return DataGenerator(data_directory, samples, shuffle=shuffle)
+        return self.steps
