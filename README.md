@@ -1,7 +1,8 @@
 # Alphazero for Go
 
 ## Test model
-Trained with 1000 game samples for 25 epochs. Has a level of around 20 kyu, only good for testing the UI.
+Trained with 20000 game samples for 50 epochs. Has a level of around 10 kyu.
+
 <br />
 Future plans of training with more samples and implementing self play for reinforcement learning similar to AlphaZero.
 
@@ -13,3 +14,9 @@ Game Screen
 ![Game Screen](https://github.com/Mafe77/alphazero-go/blob/master/assets/gamemenuSS.png)
 
 ## To Do
+- Pass function
+- Menu screen
+- Settings screen
+    - Color change
+    - Screen size
+    - Timer functionality

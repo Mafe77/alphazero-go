@@ -3,6 +3,7 @@ import sys
 import torch
 
 from consts import *
+from button import Button
 from dlgo import goboard
 from dlgo import gotypes
 from dlgo.utils import print_board
@@ -212,6 +213,10 @@ class Game:
         clock = pygame.time.Clock()
 
         bg = pygame.image.load("assets/boardBG.png").convert()
+        playImage = pygame.image.load("assets/empty.png")
+        # playImage = pygame.transform.scale(playImage, (110, 60))
+        playImage2 = pygame.image.load("assets/Pass_Unhovered.png")
+        playImage2 = pygame.transform.scale(playImage2, (120,70))
         pygame.mouse.set_visible(False)
         cursor_img = pygame.image.load("assets/cursor.png").convert_alpha()
         cursor_img_rect = cursor_img.get_rect()
@@ -220,18 +225,31 @@ class Game:
             self.make_ai_move()
         
         while True:
-            cursor_img_rect.center = pygame.mouse.get_pos()            
+            cursor_img_rect.center = pygame.mouse.get_pos()
+            MENU_MOUSE_POS = pygame.mouse.get_pos()            
+            PASS_BUTTON = Button(hovered=playImage, unhovered=playImage2 , pos=(780, 740))
 
             # adding board bg
             self.display_surface.blit(bg, (0, 0))
             self.draw_board()
-            self.display_surface.blit(cursor_img, cursor_img_rect) 
+            self.display_surface.blit(cursor_img, cursor_img_rect)
+
+            for button in [PASS_BUTTON]:
+                button.changeHover(MENU_MOUSE_POS)
+                button.update(self.display_surface)
+
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.thinking:
+                    if PASS_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        move = goboard.Move.pass_turn()
+                        print(move)
+                        winner = self.game.winner()
+                        print(winner)
                     if self.game.next_player == self.human_color or not self.ai_enabled:                        
                         pos = self.get_board_position(event.pos)
                         if pos:

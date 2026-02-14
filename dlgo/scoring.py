@@ -1,21 +1,17 @@
-# tag::scoring_imports[]
 from __future__ import absolute_import
 from collections import namedtuple
 
 from dlgo.gotypes import Player, Point
-# end::scoring_imports[]
 
-
-# tag::scoring_territory[]
 class Territory:
-    def __init__(self, territory_map):  # <1>
+    def __init__(self, territory_map): 
         self.num_black_territory = 0
         self.num_white_territory = 0
         self.num_black_stones = 0
         self.num_white_stones = 0
         self.num_dame = 0
         self.dame_points = []
-        for point, status in territory_map.items():  # <2>
+        for point, status in territory_map.items():
             if status == Player.black:
                 self.num_black_stones += 1
             elif status == Player.white:
@@ -28,12 +24,8 @@ class Territory:
                 self.num_dame += 1
                 self.dame_points.append(point)
 
-# <1> A `territory_map` splits the board into stones, territory and neutral points (dame).
-# <2> Depending on the status of a point, we increment the respective counter.
-# end::scoring_territory[]
 
 
-# tag::scoring_game_result[]
 class GameResult(namedtuple('GameResult', 'b w komi')):
     @property
     def winner(self):
@@ -51,7 +43,7 @@ class GameResult(namedtuple('GameResult', 'b w komi')):
         if self.b > w:
             return 'B+%.1f' % (self.b - w,)
         return 'W+%.1f' % (w - self.b,)
-# end::scoring_game_result[]
+
 
 
 """ evaluate_territory:
@@ -63,35 +55,31 @@ trivially dead groups.
 """
 
 
-# tag::scoring_evaluate_territory[]
+
 def evaluate_territory(board):
 
     status = {}
     for r in range(1, board.num_rows + 1):
         for c in range(1, board.num_cols + 1):
             p = Point(row=r, col=c)
-            if p in status:  # <1>
+            if p in status:  
                 continue
             stone = board.get(p)
-            if stone is not None:  # <2>
+            if stone is not None:  
                 status[p] = board.get(p)
             else:
                 group, neighbors = _collect_region(p, board)
-                if len(neighbors) == 1:  # <3>
+                if len(neighbors) == 1:  
                     neighbor_stone = neighbors.pop()
                     stone_str = 'b' if neighbor_stone == Player.black else 'w'
                     fill_with = 'territory_' + stone_str
                 else:
-                    fill_with = 'dame'  # <4>
+                    fill_with = 'dame'  
                 for pos in group:
                     status[pos] = fill_with
     return Territory(status)
 
-# <1> Skip the point, if you already visited this as part of a different group.
-# <2> If the point is a stone, add it as status.
-# <3> If a point is completely surrounded by black or white stones, count it as territory.
-# <4> Otherwise the point has to be a neutral point, so we add it to dame.
-# end::scoring_evaluate_territory[]
+
 
 
 """ _collect_region:
@@ -101,7 +89,7 @@ identify all the boundary points.
 """
 
 
-# tag::scoring_collect_region[]
+
 def _collect_region(start_pos, board, visited=None):
 
     if visited is None:
@@ -125,14 +113,12 @@ def _collect_region(start_pos, board, visited=None):
         else:
             all_borders.add(neighbor)
     return all_points, all_borders
-# end::scoring_collect_region[]
 
 
-# tag::scoring_compute_game_result[]
+
 def compute_game_result(game_state):
     territory = evaluate_territory(game_state.board)
     return GameResult(
         territory.num_black_territory + territory.num_black_stones,
         territory.num_white_territory + territory.num_white_stones,
         komi=7.5)
-# end::scoring_compute_game_result[]

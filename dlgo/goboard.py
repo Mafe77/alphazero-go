@@ -391,9 +391,10 @@ class GameState():
         return moves
 
     def winner(self):
-        if not self.is_over():
-            return None
+        # if not self.is_over():
+        #     return None
         if self.last_move.is_resign:
             return self.next_player
         game_result = compute_game_result(self)
+        print(game_result)
         return game_result.winner
