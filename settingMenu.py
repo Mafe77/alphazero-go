@@ -13,6 +13,12 @@ class Settings():
         model_path = "model/best_model.pth"
         self.game = Game(model_path)
 
+    def select_button(self, buttons, selected):
+        for button in buttons:
+            button.unPress()
+        
+        selected.setPressed()
+
     def run(self):
         bg = pygame.image.load("assets/settingsBG.png").convert()
         playImage = pygame.image.load("assets/Start_Hovered.png")
@@ -26,66 +32,43 @@ class Settings():
         hovered = pygame.transform.scale(hovered, (100,100))
 
 
-        komi1 = Button(hovered=hovered, unhovered=unhovered, pos=(220,450))
-        komi2 = Button(hovered=hovered, unhovered=unhovered, pos=(420,450))
-        komi3 = Button(hovered=hovered, unhovered=unhovered, pos=(620,450))
+        komi_buttons = [
+            Button(hovered=hovered, unhovered=unhovered, pos=(220, 450)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(420, 450)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(620, 450)),
+        ]
 
-        board1 = Button(hovered=hovered, unhovered=unhovered, pos=(220,650))
-        board2 = Button(hovered=hovered, unhovered=unhovered, pos=(420,650))
-        board3 = Button(hovered=hovered, unhovered=unhovered, pos=(620,650))
+        board_buttons = [
+            Button(hovered=hovered, unhovered=unhovered, pos=(220, 650)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(420, 650)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(620, 650)),
+        ]
 
+        other = [
+            Button(hovered=playImage, unhovered=playImage2 , pos=(470, 800)),
+        ]
         
 
         while True:
             self.display_surface.blit(bg, (0, 0))
             MENU_MOUSE_POS = pygame.mouse.get_pos()
-            PLAY_BUTTON = Button(hovered=playImage, unhovered=playImage2 , pos=(470, 800))
-            
-            
 
-            # SETTINGS_BUTTON = Button(hovered=settingImage, unhovered=settingImage2, pos=(470, 745))
-            for button in [PLAY_BUTTON, komi1, komi2, komi3, board1, board2, board3]:
-                button.changeHover(MENU_MOUSE_POS)
-                button.update(self.display_surface)
+            for group in [komi_buttons, board_buttons, other]:
+                for button in group:
+                    button.changeHover(MENU_MOUSE_POS)
+                    button.update(self.display_surface)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    if other[0].checkForInput(MENU_MOUSE_POS):
                         self.game.run()
-                    if komi1.checkForInput(MENU_MOUSE_POS):
-                        komi2.unPress()
-                        komi3.unPress()
-                        komi1.setPressed()
-                        
-                    if komi2.checkForInput(MENU_MOUSE_POS):
-                       komi1.unPress()
-                       komi3.unPress()
-                       komi2.setPressed()
-                        
-                    if komi3.checkForInput(MENU_MOUSE_POS):
-                        komi1.unPress()
-                        komi2.unPress()
-                        komi3.setPressed()
-                    
-                    if board1.checkForInput(MENU_MOUSE_POS):
-                        board2.unPress()
-                        board3.unPress()
-                        board1.setPressed()
-                        
-                    if board2.checkForInput(MENU_MOUSE_POS):
-                       board1.unPress()
-                       board3.unPress()
-                       board2.setPressed()
-                        
-                    if board3.checkForInput(MENU_MOUSE_POS):
-                        board1.unPress()
-                        board2.unPress()
-                        board3.setPressed()
-                    
+                    for group in [komi_buttons, board_buttons]:
+                        for button in group:
+                            if button.checkForInput(MENU_MOUSE_POS):
+                                self.select_button(group, button)                  
                     
             
-
             pygame.display.update()
