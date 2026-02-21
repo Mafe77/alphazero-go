@@ -18,6 +18,9 @@ class Settings():
             button.unPress()
         
         selected.setPressed()
+    
+    def get_font(self, size):
+        return pygame.font.Font("assets/font.ttf", size)
 
     def run(self):
         bg = pygame.image.load("assets/settingsBG.png").convert()
@@ -33,15 +36,21 @@ class Settings():
 
 
         komi_buttons = [
-            Button(hovered=hovered, unhovered=unhovered, pos=(220, 450)),
-            Button(hovered=hovered, unhovered=unhovered, pos=(420, 450)),
-            Button(hovered=hovered, unhovered=unhovered, pos=(620, 450)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(220, 450), 
+            text_input="0", font=self.get_font(45)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(420, 450),
+            text_input="6.5", font=self.get_font(20)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(620, 450),
+            text_input="7.5", font=self.get_font(20)),
         ]
 
         board_buttons = [
-            Button(hovered=hovered, unhovered=unhovered, pos=(220, 650)),
-            Button(hovered=hovered, unhovered=unhovered, pos=(420, 650)),
-            Button(hovered=hovered, unhovered=unhovered, pos=(620, 650)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(220, 650),
+            text_input="9", font=self.get_font(20)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(420, 650),
+            text_input="13", font=self.get_font(20)),
+            Button(hovered=hovered, unhovered=unhovered, pos=(620, 650),
+            text_input="19", font=self.get_font(20)),
         ]
 
         other = [
