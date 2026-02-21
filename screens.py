@@ -2,6 +2,7 @@ import sys
 import pygame
 from consts import WIDTH, HEIGHT
 from game import Game
+from settingMenu import Settings
 from button import Button
 
 class Screen:
@@ -11,9 +12,10 @@ class Screen:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("AlphaGo PY")
         self.clock = pygame.time.Clock()  
-        self.game = Game(model_path)  
+        self.game = Game(model_path)
+        self.settings = Settings()
     
-    def get_font(self, size): # Returns Press-Start-2P in the desired size
+    def get_font(self, size): 
         return pygame.font.Font("assets/font.ttf", size)
 
     def main_menu(self):
@@ -44,7 +46,10 @@ class Screen:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
-                        self.game.run()               
+                        self.game.run()
+                    if SETTINGS_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        self.settings.run()
+
 
 
             pygame.display.update()

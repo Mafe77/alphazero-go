@@ -213,10 +213,10 @@ class Game:
         clock = pygame.time.Clock()
 
         bg = pygame.image.load("assets/boardBG.png").convert()
-        playImage = pygame.image.load("assets/empty.png")
+        passImage = pygame.image.load("assets/empty.png")
         # playImage = pygame.transform.scale(playImage, (110, 60))
-        playImage2 = pygame.image.load("assets/Pass_Unhovered.png")
-        playImage2 = pygame.transform.scale(playImage2, (120,70))
+        passImage2 = pygame.image.load("assets/Pass_Unhovered.png")
+        passImage2 = pygame.transform.scale(passImage2, (120,70))
         pygame.mouse.set_visible(False)
         cursor_img = pygame.image.load("assets/cursor.png").convert_alpha()
         cursor_img_rect = cursor_img.get_rect()
@@ -227,7 +227,7 @@ class Game:
         while True:
             cursor_img_rect.center = pygame.mouse.get_pos()
             MENU_MOUSE_POS = pygame.mouse.get_pos()            
-            PASS_BUTTON = Button(hovered=playImage, unhovered=playImage2 , pos=(780, 740))
+            PASS_BUTTON = Button(hovered=passImage, unhovered=passImage2 , pos=(780, 740))
 
             # adding board bg
             self.display_surface.blit(bg, (0, 0))
