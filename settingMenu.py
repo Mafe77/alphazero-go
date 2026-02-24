@@ -58,7 +58,7 @@ class Settings():
         handicap_buttons[0].update(self.display_surface)
 
         other = [
-            Button(hovered=playImage, unhovered=playImage2 , pos=(470, 800)),
+            Button(hovered=playImage, unhovered=playImage2 , pos=(420, 800)),
         ]
         
 

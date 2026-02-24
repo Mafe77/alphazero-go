@@ -190,6 +190,36 @@ class Game:
                 (x - STONE_RADIUS, y - STONE_RADIUS)
             )
 
+    def add_handicap(self):
+        if self.handicap == 0:
+            return None
+        if self.handicap == 2:
+            move_set = [
+                goboard.Move.play(gotypes.Point(row=4,col=4)),
+                goboard.Move.pass_turn(),
+                goboard.Move.play(gotypes.Point(row=16,col=16))
+            ]
+        if self.handicap == 6:
+            move_set = [
+                goboard.Move.play(gotypes.Point(row=4,col=4)),
+                goboard.Move.pass_turn(),
+                goboard.Move.play(gotypes.Point(row=16,col=16)),
+                goboard.Move.pass_turn(),
+                goboard.Move.play(gotypes.Point(row=4,col=16)),
+                goboard.Move.pass_turn(),
+                goboard.Move.play(gotypes.Point(row=16,col=4)),
+                goboard.Move.pass_turn(),
+                goboard.Move.play(gotypes.Point(row=10,col=16)),
+                goboard.Move.pass_turn(),
+                goboard.Move.play(gotypes.Point(row=10,col=4)),
+            ]
+        for move in move_set:
+            self.game = self.game.apply_move(move)
+
+        self.board = self.game.board
+        self.last_move = move_set[-1]
+
+
 
     def make_ai_move(self):
         if not self.ai_enabled or self.thinking:
@@ -223,6 +253,8 @@ class Game:
         cursor_img = pygame.image.load("assets/cursor.png").convert_alpha()
         cursor_img_rect = cursor_img.get_rect()
 
+        self.add_handicap()
+
         if self.ai_enabled and self.game.next_player == self.ai_color:
             self.make_ai_move()
         
@@ -250,7 +282,7 @@ class Game:
                     if PASS_BUTTON.checkForInput(MENU_MOUSE_POS):
                         move = goboard.Move.pass_turn()
                         print(move)
-                        winner = self.game.winner()
+                        winner = self.game.winner(self.komi)
                         print(winner)
                     if self.game.next_player == self.human_color or not self.ai_enabled:                        
                         pos = self.get_board_position(event.pos)
