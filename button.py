@@ -9,7 +9,7 @@ class Button():
 		self.y_pos = pos[1]
 		if font is not None:
 			self.text = self.font.render(self.text_input, True, "Black")
-			self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos-10))
+			self.text_rect = self.text.get_rect(center=(self.x_pos+3, self.y_pos-10))
 		self.image = self.unhovered
 		self.rect = self.image.get_rect(center=(self.x_pos, self.y_pos))
 		self.pressed = False
@@ -19,6 +19,8 @@ class Button():
 		screen.blit(self.image, self.rect)
 
 		if self.text_input is not None:
+			if self.pressed:
+				self.text_rect = self.text.get_rect(center=(self.x_pos+3, self.y_pos+3))
 			screen.blit(self.text, self.text_rect)
 
 	def setPressed(self):
@@ -30,7 +32,12 @@ class Button():
 		self.image = self.unhovered
 
 	def getPressed(self):
-		return self.pressed		
+		return self.pressed
+
+	def getValue(self):
+		if self.text_input is not None:
+			return self.text_input
+		return None		
 
 	def checkForInput(self, position):
 		if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top, self.rect.bottom):
@@ -42,11 +49,11 @@ class Button():
 			if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top, self.rect.bottom):
 				self.image = self.hovered
 				if self.text_input is not None:
-					self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos+3))
+					self.text_rect = self.text.get_rect(center=(self.x_pos+3, self.y_pos+3))
 			else:
 				self.image = self.unhovered
 				if self.text_input is not None:
-					self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos-10))
+					self.text_rect = self.text.get_rect(center=(self.x_pos+3, self.y_pos-10))
 		else:
 			self.image = self.hovered
 

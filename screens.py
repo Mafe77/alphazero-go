@@ -7,12 +7,11 @@ from button import Button
 
 class Screen:
     def __init__(self):
-        model_path = "model/best_model.pth"
+        self.model_path = "model/best_model.pth"
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("AlphaGo PY")
         self.clock = pygame.time.Clock()  
-        self.game = Game(model_path)
         self.settings = Settings()
     
     def get_font(self, size): 
@@ -46,7 +45,8 @@ class Screen:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
-                        self.game.run()
+                        game = Game(self.model_path, 0, 7.5)
+                        game.run()
                     if SETTINGS_BUTTON.checkForInput(MENU_MOUSE_POS):
                         self.settings.run()
 

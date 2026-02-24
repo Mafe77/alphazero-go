@@ -11,8 +11,10 @@ from dlgo.encoders.simple import SimpleEncoder
 from aiPlayer import AIPlayer
 
 class Game:
-    def __init__(self, model_path):
+    def __init__(self, model_path, handicap, komi):
         self.display_surface = pygame.display.get_surface()
+        self.handicap = handicap
+        self.komi = komi
         self.game = goboard.GameState.new_game(BOARD_SIZE)
         self.board = self.game.board
         self.last_move = None

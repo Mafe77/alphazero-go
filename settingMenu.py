@@ -7,23 +7,23 @@ class Settings():
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
         # self.color = color
-        # self.komi = komi
-        # self.board_size = board_size
+        self.komi = 6.5
+        # self.board_size = 19
+        self.handicap = 0
 
-        model_path = "model/best_model.pth"
-        self.game = Game(model_path)
+        self.model_path = "model/best_model.pth"
+        # self.game = Game(model_path, self.board_size)
 
     def select_button(self, buttons, selected):
         for button in buttons:
-            button.unPress()
-        
+            button.unPress()        
         selected.setPressed()
     
     def get_font(self, size):
         return pygame.font.Font("assets/font.ttf", size)
 
     def run(self):
-        bg = pygame.image.load("assets/settingsBG.png").convert()
+        bg = pygame.image.load("assets/settings.png").convert()
         playImage = pygame.image.load("assets/Start_Hovered.png")
         playImage = pygame.transform.scale(playImage, (330,40))
         playImage2 = pygame.image.load("assets/Start_Unhovered.png")
@@ -43,15 +43,19 @@ class Settings():
             Button(hovered=hovered, unhovered=unhovered, pos=(620, 450),
             text_input="7.5", font=self.get_font(20)),
         ]
+        komi_buttons[2].setPressed()
+        komi_buttons[2].update(self.display_surface)
 
-        board_buttons = [
+        handicap_buttons = [
             Button(hovered=hovered, unhovered=unhovered, pos=(220, 650),
-            text_input="9", font=self.get_font(20)),
+            text_input="0", font=self.get_font(40)),
             Button(hovered=hovered, unhovered=unhovered, pos=(420, 650),
-            text_input="13", font=self.get_font(20)),
+            text_input="2", font=self.get_font(40)),
             Button(hovered=hovered, unhovered=unhovered, pos=(620, 650),
-            text_input="19", font=self.get_font(20)),
+            text_input="6", font=self.get_font(40)),
         ]
+        handicap_buttons[0].setPressed()
+        handicap_buttons[0].update(self.display_surface)
 
         other = [
             Button(hovered=playImage, unhovered=playImage2 , pos=(470, 800)),
@@ -62,7 +66,7 @@ class Settings():
             self.display_surface.blit(bg, (0, 0))
             MENU_MOUSE_POS = pygame.mouse.get_pos()
 
-            for group in [komi_buttons, board_buttons, other]:
+            for group in [komi_buttons, handicap_buttons, other]:
                 for button in group:
                     button.changeHover(MENU_MOUSE_POS)
                     button.update(self.display_surface)
@@ -73,11 +77,20 @@ class Settings():
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if other[0].checkForInput(MENU_MOUSE_POS):
-                        self.game.run()
-                    for group in [komi_buttons, board_buttons]:
-                        for button in group:
-                            if button.checkForInput(MENU_MOUSE_POS):
-                                self.select_button(group, button)                  
+                        game = Game(self.model_path, self.handicap, self.komi)
+                        game.run()
+                   
+                    for button in handicap_buttons:
+                        if button.checkForInput(MENU_MOUSE_POS):
+                            self.select_button(handicap_buttons, button)
+                            # print(button.getValue())
+                            self.handicap = int(button.getValue())
+
+                    for button in komi_buttons:
+                        if button.checkForInput(MENU_MOUSE_POS):
+                            self.select_button(komi_buttons, button)
+                            # print(button.getValue())
+                            self.komi = float(button.getValue())                  
                     
             
             pygame.display.update()
