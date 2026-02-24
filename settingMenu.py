@@ -2,11 +2,12 @@ import pygame
 import sys
 from game import Game
 from button import Button
+from dlgo.gotypes import Player
 
 class Settings():
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
-        # self.color = color
+        self.color = Player.black
         self.komi = 6.5
         # self.board_size = 19
         self.handicap = 0
@@ -34,6 +35,20 @@ class Settings():
         hovered = pygame.image.load("assets/SettingsButtonPressed.png")
         hovered = pygame.transform.scale(hovered, (100,100))
 
+        unhoveredBig = pygame.image.load("assets/unhoveredBig.png")
+        unhoveredBig = pygame.transform.scale(unhoveredBig, (200,100))
+        hoveredBig = pygame.image.load("assets/hoveredBig.png")
+        hoveredBig = pygame.transform.scale(hoveredBig, (200,100))
+
+
+        color_buttons = [
+            Button(hovered=hoveredBig, unhovered=unhoveredBig, pos=(260, 280), 
+            text_input="WHITE", font=self.get_font(20)),
+            Button(hovered=hoveredBig, unhovered=unhoveredBig, pos=(580, 280), 
+            text_input="BLACK", font=self.get_font(20)),
+        ]
+        color_buttons[1].setPressed()
+        color_buttons[1].update(self.display_surface)
 
         komi_buttons = [
             Button(hovered=hovered, unhovered=unhovered, pos=(220, 450), 
@@ -66,7 +81,7 @@ class Settings():
             self.display_surface.blit(bg, (0, 0))
             MENU_MOUSE_POS = pygame.mouse.get_pos()
 
-            for group in [komi_buttons, handicap_buttons, other]:
+            for group in [color_buttons, komi_buttons, handicap_buttons, other]:
                 for button in group:
                     button.changeHover(MENU_MOUSE_POS)
                     button.update(self.display_surface)
@@ -77,9 +92,19 @@ class Settings():
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if other[0].checkForInput(MENU_MOUSE_POS):
-                        game = Game(self.model_path, self.handicap, self.komi)
+                        game = Game(self.model_path, self.handicap, self.komi, self.color)
                         game.run()
-                   
+
+                    for button in color_buttons:
+                        if button.checkForInput(MENU_MOUSE_POS):
+                            self.select_button(color_buttons, button)
+                            if button.getValue() == "WHITE":
+                                self.color = Player.white
+                            else:
+                                self.color = Player.black
+                            
+                            # print(self.color)
+
                     for button in handicap_buttons:
                         if button.checkForInput(MENU_MOUSE_POS):
                             self.select_button(handicap_buttons, button)

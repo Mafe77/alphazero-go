@@ -11,7 +11,7 @@ from dlgo.encoders.simple import SimpleEncoder
 from aiPlayer import AIPlayer
 
 class Game:
-    def __init__(self, model_path, handicap, komi):
+    def __init__(self, model_path, handicap, komi, player_color):
         self.display_surface = pygame.display.get_surface()
         self.handicap = handicap
         self.komi = komi
@@ -19,8 +19,11 @@ class Game:
         self.board = self.game.board
         self.last_move = None
         # self.draw_board()
-        self.human_color = gotypes.Player.black
-        self.ai_color = gotypes.Player.white
+        self.human_color = player_color
+        if player_color == gotypes.Player.black:
+            self.ai_color = gotypes.Player.white
+        else:
+            self.ai_color = gotypes.Player.black
         self.encoder = SimpleEncoder((BOARD_SIZE, BOARD_SIZE))
 
         if model_path:
@@ -182,7 +185,10 @@ class Game:
             y = BOARD_Y + (self.board.num_rows - self.hover_pos.row) * CELL_SIZE
             
             # Create semi-transparent surface
-            hover_piece = blackPiece.copy()
+            if self.human_color == gotypes.Player.black:
+                hover_piece = blackPiece.copy()
+            else:
+                hover_piece = whitePiece.copy()
             hover_piece.set_alpha(120)
 
             self.display_surface.blit(

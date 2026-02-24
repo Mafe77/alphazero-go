@@ -4,6 +4,7 @@ from consts import WIDTH, HEIGHT
 from game import Game
 from settingMenu import Settings
 from button import Button
+from dlgo.gotypes import Player
 
 class Screen:
     def __init__(self):
@@ -45,7 +46,7 @@ class Screen:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
-                        game = Game(self.model_path, 0, 7.5)
+                        game = Game(self.model_path, 0, 7.5, Player.black)
                         game.run()
                     if SETTINGS_BUTTON.checkForInput(MENU_MOUSE_POS):
                         self.settings.run()
