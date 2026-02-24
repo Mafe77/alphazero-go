@@ -250,7 +250,10 @@ class Game:
     def run(self):
         clock = pygame.time.Clock()
 
-        bg = pygame.image.load("assets/boardBG.png").convert()
+        if self.human_color == gotypes.Player.black:
+            bg = pygame.image.load("assets/boardBG.png").convert()
+        else:
+            bg = pygame.image.load("assets/boardWhite.png").convert()
         passImage = pygame.image.load("assets/empty.png")
         # playImage = pygame.transform.scale(playImage, (110, 60))
         passImage2 = pygame.image.load("assets/Pass_Unhovered.png")
